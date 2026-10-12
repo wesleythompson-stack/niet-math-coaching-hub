@@ -28,16 +28,26 @@ st.markdown("""
     .glow-card {
         background-color: #f0fdf4;
         border-left: 5px solid #22c55e;
-        padding: 1rem;
+        padding: 1.2rem;
         border-radius: 8px;
         margin-bottom: 1rem;
     }
     .artifact-card {
         background-color: #ffffff;
-        border: 2px dashed #94a3b8;
-        padding: 1rem;
-        border-radius: 8px;
+        border: 2px solid #3b82f6;
+        padding: 1.5rem;
+        border-radius: 10px;
         margin-top: 1rem;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    }
+    .role-badge {
+        background-color: #eff6ff;
+        border: 1px solid #bfdbfe;
+        color: #1e40af;
+        padding: 0.3rem 0.6rem;
+        border-radius: 4px;
+        font-weight: bold;
+        font-size: 0.85rem;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -76,7 +86,7 @@ def sanitize_text_pii(text: str) -> str:
     return text
 
 # ==============================================================================
-# 3. SIDEBAR CONFIGURATION & COMPLETE TEKS DATABASES
+# 3. SIDEBAR CONFIGURATION & TEKS DATABASES
 # ==============================================================================
 TEKS_7TH_MATH = [
     "7.2A - Sets & Subsets of Rational Numbers",
@@ -177,6 +187,22 @@ TEKS_ALGEBRA_1 = [
     "Custom TEKS"
 ]
 
+NIET_ALL_INDICATORS = [
+    "None",
+    "Standards and Objectives",
+    "Motivating Students",
+    "Presenting Instructional Content",
+    "Lesson Structure and Pacing",
+    "Activities and Materials",
+    "Questioning",
+    "Academic Feedback",
+    "Grouping Students",
+    "Teacher Content Knowledge",
+    "Teacher Knowledge of Students",
+    "Thinking",
+    "Problem Solving"
+]
+
 with st.sidebar:
     st.image("https://img.icons8.com/color/96/calculator.png", width=64)
     st.title("Coaching Settings")
@@ -209,7 +235,7 @@ client = genai.Client(api_key=api_key) if api_key else None
 st.markdown(f"""
 <div class="main-header">
     <h1 style="margin:0;">📐 NIET Math Coaching Intelligence Hub</h1>
-    <p style="margin:0; opacity:0.9;">Tailored for <b>{selected_grade}</b> • 60% Conceptual Discovery + 40% CRA Modeling • NIET Level 5 Reflective Framework</p>
+    <p style="margin:0; opacity:0.9;">Tailored for <b>{selected_grade}</b> • POGIL Inquiry + Complex Instruction + Accountable Talk • NIET Level 5 Framework</p>
 </div>
 """, unsafe_allow_html=True)
 
@@ -224,94 +250,172 @@ tab_elevator, tab_assess, tab_data, tab_cluster = st.tabs([
 ])
 
 # ------------------------------------------------------------------------------
-# TAB 1: NIET LESSON ELEVATOR
+# TAB 1: NIET LESSON ELEVATOR (POGIL + COMPLEX INSTRUCTION + HYBRID ARTIFACT)
 # ------------------------------------------------------------------------------
 with tab_elevator:
-    st.subheader("Elevate Lesson Draft to NIET Level 5")
-    st.caption("Transforms standard lesson drafts using 60% Conceptual Discovery, 40% CRA visual modeling, DOK-3 cognitive escalation, and teen-relevant contexts.")
+    st.subheader("Elevate Lesson Draft or PDF/Slides to NIET Level 5")
+    st.caption("Upload a lesson plan PDF or Google Slides export, select primary and secondary NIET indicators, and receive slide-by-slide POGIL guided inquiry, Complex Instruction status interventions, and EB/SPED scaffolds.")
 
-    col1, col2 = st.columns([1, 1])
-    with col1:
-        niet_indicator = st.selectbox(
+    col_e1, col_e2 = st.columns([1, 1])
+    
+    with col_e1:
+        primary_indicator = st.selectbox(
             "Primary NIET Indicator Focus:",
-            ["Questioning (Varied, Sequenced & Student-Generated Inquiry)", 
-             "Thinking & Problem Solving (Analytical, Practical, Creative & Metacognition)", 
-             "Academic Feedback (Frequent, High-Quality & Peer Critique)", 
-             "Grouping Students (4-Person Kagan Teams & Individual Accountability)"]
+            [ind for ind in NIET_ALL_INDICATORS if ind != "None"],
+            index=5 # Questioning
         )
         
-        lesson_input = st.text_area(
-            "Paste lesson draft / objective here:",
-            height=180,
-            placeholder=f"Example for {selected_grade}: Students will set up and solve equations. Teacher presents 2 examples on board. Students work in pairs on a worksheet."
+        secondary_indicator = st.selectbox(
+            "Secondary NIET Indicator Focus (Optional):",
+            NIET_ALL_INDICATORS,
+            index=0
+        )
+        
+        uploaded_lesson_pdf = st.file_uploader(
+            "Upload Lesson Plan PDF or Google Slides (Exported as .pdf):",
+            type=["pdf"],
+            key="lesson_pdf_upload"
+        )
+        
+        lesson_text_input = st.text_area(
+            "Or paste lesson text / objective here:",
+            height=140,
+            placeholder=f"Example for {selected_grade}: Objective is to solve linear equations. Teacher presents 3 examples on board. Students work on a 10-question worksheet."
         )
 
-        btn_elevate = st.button("🚀 Generate Level 5 Coaching Brief", type="primary", use_container_width=True)
+        btn_elevate = st.button("🚀 Generate Level 5 POGIL Coaching Brief", type="primary", use_container_width=True)
 
-    with col2:
+    with col_e2:
         if btn_elevate:
-            clean_lesson = sanitize_text_pii(lesson_input)
-            with st.spinner("Analyzing lesson with Master Coach lens..."):
-                if client:
-                    system_prompt = f"""
-                    You are a Master Junior High Math Instructional Coach specializing in NIET Rubric alignment for {selected_grade}.
-                    
-                    MANDATORY COACHING PHILOSOPHY & PEDAGOGICAL DIRECTIVES:
-                    1. EMPATHETIC TONE & GLOWS: Always start with enthusiastic, authentic 'Glows' acknowledging the teacher's intentionality and standards alignment.
-                    2. NIET LEVEL 5 DESCRIPTOR ALIGNMENT: Explicitly reference exact NIET Rubric Level 5 performance descriptors for '{niet_indicator}'. Point out what shifts the lesson from Level 3 (Proficient) to Level 5 (Exemplary).
-                    3. DOK-3 ESCALATION & METACOGNITION: Convert any low-level procedural tasks (DOK 1/2) into high-level DOK-3 cognitive tasks. Force students to evaluate their own thinking, defend solutions, and critique flawed reasoning.
-                    4. TEEN-RELEVANT CONTEXTS: Frame mathematical situations around real 7th/9th grade scenarios (e.g., mobile phone data caps, cloud storage limits, gaming pass tiers, streaming algorithm metrics, sports analytics).
-                    5. 4-PERSON KAGAN GROUP DISCOURSE: Structure team discourse using 4-person mixed-ability Kagan roles (RallyCoach, RoundRobin) with structured academic sentence stems leading to whole-class share-outs.
-                    6. 60% DISCOVERY / 40% CRA MODELING: Ensure inquiry and visual/concrete tools (algebra tiles, visual balance scales, area models) precede procedural rules.
-                    
-                    OUTPUT FORMAT REQUIRED:
-                    ### 🌟 Authentic Affirming Glows
-                    [Affirm teacher intent, clarity, and standards alignment]
-                    
-                    ### 🎯 NIET Level 5 Indicator Breakdown ({niet_indicator})
-                    [Explicitly cite NIET Level 5 rubric descriptors and map out the exact shift required]
-                    
-                    ### 💬 Classroom Dialogue Script (Level 3 Procedural vs Level 5 Exemplary)
-                    - **Level 3 (Teacher-Led Procedural Recall):** Standard dialogue.
-                    - **Level 5 (Student-Led Metacognitive Discovery):** Dialogue featuring teen-relevant context, 4-person Kagan group roles, sentence stems, and DOK-3 defense.
-                    
-                    ### 🖨️ Printable Student Scaffold Artifact
-                    [Create a text-based printable graphic organizer / Kagan team discovery mat incorporating visual CRA models and defense stems]
-                    """
-                    
-                    response = client.models.generate_content(
-                        model="gemini-1.5-pro",
-                        contents=f"{system_prompt}\n\nTarget TEKS: {selected_teks}\nIndicator: {niet_indicator}\nLesson Draft:\n{clean_lesson}"
-                    )
-                    st.markdown(response.text)
-                else:
-                    st.markdown(f"""
-                    <div class="glow-card">
-                        <h4>🌟 Authentic Affirming Glows</h4>
-                        <p>Wonderful foundation! Your draft for <b>{selected_teks}</b> establishes clear mathematical objectives and structures guided practice for students.</p>
-                    </div>
-                    """, unsafe_allow_html=True)
-                    
-                    st.markdown(f"### 🎯 NIET Level 5 Descriptor Shift ({niet_indicator})")
-                    st.write("**NIET Exemplary Target:** *'Questions consistently engage students in critical thinking, require students to draw connections, and prompt metacognitive self-monitoring.'*")
-                    
-                    st.markdown(f"### 💬 Level 3 vs Level 5 Dialogue Script ({selected_grade})")
-                    col_l3, col_l5 = st.columns(2)
-                    with col_l3:
-                        st.info("**LEVEL 3 (Procedural Recall)**\n\n**Teacher:** 'To calculate monthly cloud storage cost $C = 0.15g + 5$, what do we plug in for 50 GB?'\n\n**Student:** 'Multiply 0.15 by 50 and add 5 to get $12.50.'\n\n**Teacher:** 'Correct, move to problem #2.'")
-                    with col_l5:
-                        st.success(f"**LEVEL 5 (DOK-3 Metacognition & Kagan Discourse)**\n\n**Teacher:** 'Team Member 1, model the storage plan $C = 0.15g + 5$ on your visual balance mat. Member 2, critique Student B's claim that doubling storage from 50 GB to 100 GB doubles the total bill. Members 3 & 4, prepare your team defense.'\n\n**Sentence Stem:** *'Student B's logic fails because the $5 base fee remains constant, meaning...'*\n\n**Student 2 (Team Defense):** '50 GB costs $12.50, but 100 GB costs $20.00, not $25.00! The constant $5 fee prevents it from being a direct proportion.'")
+            if not lesson_text_input and not uploaded_lesson_pdf:
+                st.warning("⚠️ Please paste lesson text or upload a PDF/Google Slides export to continue.")
+            else:
+                clean_text = sanitize_text_pii(lesson_text_input)
+                
+                with st.spinner("Analyzing lesson through POGIL, Complex Instruction, and NIET Level 5 lenses..."):
+                    if client:
+                        prompt_contents = []
+                        if uploaded_lesson_pdf:
+                            pdf_bytes = uploaded_lesson_pdf.read()
+                            pdf_part = types.Part.from_bytes(data=pdf_bytes, mime_type="application/pdf")
+                            prompt_contents.append(pdf_part)
+                        
+                        secondary_clause = f"and Secondary Focus: '{secondary_indicator}'" if secondary_indicator != "None" else ""
+                        
+                        system_prompt = f"""
+                        You are a Master Junior High Math Instructional Coach specializing in NIET Rubric alignment, POGIL (Process-Oriented Guided Inquiry Learning), Complex Instruction, and Accountable Talk Moves for {selected_grade}.
+                        
+                        PRIMARY NIET INDICATOR: '{primary_indicator}' {secondary_clause}.
+                        TARGET TEKS: {selected_teks} ({selected_grade}).
+                        
+                        MANDATORY PEDAGOGICAL REQUIREMENTS:
+                        1. AFFIRMING GLOWS: Open with sincere, highly specific 'Glows' celebrating teacher intentionality and standards alignment.
+                        2. NIET LEVEL 5 DESCRIPTOR ALIGNMENT: Explicitly cite NIET Rubric Level 5 descriptors for '{primary_indicator}' (and '{secondary_indicator}' if selected). Detail the exact shift needed to move from Level 3 (Proficient) to Level 5 (Exemplary).
+                        3. SLIDE-BY-SLIDE / PAGE-BY-PAGE ANNOTATIONS: If a PDF is attached, provide slide-by-slide or section-by-section actionable tweaks referencing exact page/slide numbers.
+                        4. POGIL GUIDED INQUIRY STRUCTURE: Structure student work into 3 POGIL phases:
+                           - Phase 1: Exploration (Analyzing visual models/patterns before formulas).
+                           - Phase 2: Concept Invention (Deriving rules through guided prompts).
+                           - Phase 3: Application (Applying concept to a DOK-3 real-world teen scenario).
+                           Assign 4 specific roles: Manager, Recorder, Spokesperson, Reflector.
+                        5. COMPLEX INSTRUCTION & STATUS INTERVENTIONS: Design group-worthy multi-ability tasks (spatial, logical, verbal). Include specific coaching cues for 'Assigning Competence' to publicly validate low-status students making visual/conceptual contributions.
+                        6. ACCOUNTABLE TALK MOVES: Embed explicit student talk stems (Revoicing, Pressing for Reasoning, Adding On, Agreeing/Disagreeing with Proof).
+                        7. EB (ELPS) & SPED SCAFFOLDS: Provide sentence frames, visual CRA anchors (algebra tiles, balance scales), chunked steps, and cognate supports.
+                        8. HYBRID ARTIFACT REQUIREMENTS:
+                           - First, provide a formatted visual Markdown POGIL Student Card.
+                           - Immediately after, provide a clean, unformatted plain text copy block inside ```text ``` code block tags so teachers can click 'Copy' and paste cleanly into Google Docs or Microsoft Word.
+                        
+                        OUTPUT STRUCTURE REQUIRED:
+                        ### 🌟 Authentic Affirming Glows
+                        
+                        ### 🎯 NIET Level 5 Indicator Shift: {primary_indicator}
+                        
+                        ### 📍 Slide-by-Slide / Section-by-Section POGIL Annotations
+                        
+                        ### 💬 Classroom Dialogue Script (Level 3 Procedural vs Level 5 POGIL + Talk Moves)
+                        
+                        ### 🌐 EB (ELPS) & SPED Accessibility Scaffolds
+                        
+                        ### 🎨 Visual On-Screen POGIL Discovery Mat
+                        
+                        ### 📋 Copyable Plain-Text Version (For Google Docs / Word)
+                        ```text
+                        [Unformatted plain-text version of the POGIL Discovery Mat]
+                        ```
+                        """
+                        
+                        prompt_contents.append(f"{system_prompt}\n\nLesson Input Text:\n{clean_text}")
+                        
+                        response = client.models.generate_content(
+                            model="gemini-1.5-pro",
+                            contents=prompt_contents
+                        )
+                        st.markdown(response.text)
+                    else:
+                        st.markdown(f"""
+                        <div class="glow-card">
+                            <h4>🌟 Authentic Affirming Glows</h4>
+                            <p>Wonderful foundation! Your draft for <b>{selected_teks}</b> establishes a clear mathematical learning target and structures dedicated practice time for students.</p>
+                        </div>
+                        """, unsafe_allow_html=True)
+                        
+                        st.markdown(f"### 🎯 NIET Level 5 Indicator Shift ({primary_indicator})")
+                        st.write(f"**NIET Exemplary Target for {primary_indicator}:** *'Tasks demand high-level thinking, require students to draw connections, and prompt metacognitive self-monitoring through structured group inquiry.'*")
+                        
+                        st.markdown("### 📍 Slide-by-Slide POGIL Annotations")
+                        st.info("**Slide 2 (Warmup):** Convert procedural formula display into POGIL Exploration. Show two contrasting mobile phone plans visually using tape diagrams.\n\n**Slide 5 (Guided Practice):** Replace teacher lecture with POGIL Roles. Assign *Manager* to time-box exploration and *Recorder* to draw visual balance scales.")
 
-                    st.markdown("""
-                    <div class="artifact-card">
-                        <h4>🖨️ Printable Student Artifact: Teen Context Discovery Mat</h4>
-                        <p><b>Context:</b> Gaming Subscription vs. Per-Game Purchase Model</p>
-                        <hr>
-                        <p><b>Step 1 (Visual CRA Model):</b> Sketch the monthly cost scale for Plan A ($15 base + $2/game) vs Plan B ($30 unlimited).<br>
-                        <b>Step 2 (Metacognitive Defense Stem):</b> <i>"Our team proved Plan A becomes more expensive than Plan B when a gamer downloads more than _____ games because..."</i><br>
-                        <b>Step 3 (Error Critique):</b> Identify why Distractor B incorrectly calculated the break-even point.</p>
-                    </div>
-                    """, unsafe_allow_html=True)
+                        st.markdown("### 💬 Level 3 vs Level 5 Classroom Dialogue Script")
+                        col_l3, col_l5 = st.columns(2)
+                        with col_l3:
+                            st.info("**LEVEL 3 (Procedural)**\n\n**Teacher:** 'What is step 1 to solve $2x + 5 = 15$?'\n\n**Student:** 'Subtract 5 from both sides.'\n\n**Teacher:** 'Correct, write that down.'")
+                        with col_l5:
+                            st.success("**LEVEL 5 (POGIL + Accountable Talk Moves)**\n\n**Teacher:** 'Spokesperson from Team 3, revoice what the Reflector noticed about testing $x=5$ on your balance mat.'\n\n**Spokesperson:** 'Our team agrees that if we remove 5 unit tiles from both scales, the balance stays equal.'\n\n**Teacher (Assigning Competence):** 'Notice how Alex's visual model made it obvious why we subtract 5 first! Team 4, do you agree or disagree with Team 3's proof?'")
+
+                        st.markdown("""
+                        ### 🎨 Visual On-Screen POGIL Discovery Mat
+                        <div class="artifact-card">
+                            <h3 style="margin-top:0;">📋 POGIL Student Discovery Mat: {selected_teks}</h3>
+                            <p><span class="role-badge">Manager</span> Pacing & Turn-Taking &nbsp;|&nbsp; 
+                               <span class="role-badge">Recorder</span> Visual Balance Model &nbsp;|&nbsp; 
+                               <span class="role-badge">Spokesperson</span> Class Share &nbsp;|&nbsp; 
+                               <span class="role-badge">Reflector</span> Talk Moves Check</p>
+                            <hr>
+                            <h4>Phase 1: Exploration</h4>
+                            <p>Compare Balance Scale A ($2x + 5 = 15$) and Scale B ($2x = 10$). What action was taken on Scale A to create Scale B?</p>
+                            <h4>Phase 2: Concept Invention</h4>
+                            <p><b>Team Consensus Stem:</b> <i>"Our team derived the rule that subtracting equal quantities maintains scale balance because..."</i></p>
+                            <h4>Phase 3: Application & Accountable Talk Move</h4>
+                            <p><b>Talk Move Prompt:</b> <i>"I want to add on to [Name]'s idea because testing $x=5$ proves..."</i></p>
+                        </div>
+                        """, unsafe_allow_html=True)
+
+                        st.markdown("### 📋 Copyable Plain-Text Version (For Google Docs / Word)")
+                        st.code(f"""================================================================================
+POGIL STUDENT DISCOVERY MAT: {selected_teks}
+================================================================================
+
+TEAM ROLES:
+- MANAGER: Tracks time limits and ensures equal participation across all members.
+- RECORDER: Draws the team visual balance model and records written consensus.
+- SPOKESPERSON: Shares out team reasoning during whole-class discussion.
+- REFLECTOR: Monitors use of Accountable Talk Stems within the group.
+
+PHASE 1: EXPLORATION (Visual Pattern Analysis)
+Compare Balance Scale A (2x + 5 = 15) and Scale B (2x = 10).
+Question: What specific action was taken on Scale A to create Scale B?
+
+PHASE 2: CONCEPT INVENTION (Derived Rule)
+Sentence Stem: "Our team derived the rule that subtracting equal quantities from both sides maintains scale balance because..."
+
+PHASE 3: APPLICATION & ACCOUNTABLE TALK
+Talk Move Prompt: "I want to add on to [Name]'s idea because testing x = 5 proves..."
+===============================================================================""", language="text")
+
+                        st.markdown("""
+                        ### 🌐 EB (ELPS) & SPED Accessibility Scaffolds
+                        * **Emergent Bilingual Scaffold:** Provide visual vocabulary anchor cards pairing Spanish cognates (e.g., *Ecuación / Equation*, *Constante / Constant*) with concrete balance scale icons.
+                        * **SPED Scaffold:** Chunk POGIL Exploration into two discrete steps with pre-cut algebra tile manipulatives before symbolic recording.
+                        """)
 
 # ------------------------------------------------------------------------------
 # TAB 2: WARMUP & EXIT TICKET GENERATOR
@@ -385,12 +489,10 @@ with tab_data:
             st.warning("⚠️ Please upload BOTH the Eduphoria student response CSV and the Assessment PDF to run the analysis.")
         else:
             try:
-                # 1. Process & Sanitize CSV
                 raw_df = pd.read_csv(uploaded_csv)
                 sanitized_df, dropped_pii = sanitize_eduphoria_dataframe(raw_df)
                 csv_summary_str = sanitized_df.to_csv(index=False)
                 
-                # 2. Process PDF Bytes for Gemini Multimodal Input
                 pdf_bytes = uploaded_pdf.read()
                 pdf_part = types.Part.from_bytes(data=pdf_bytes, mime_type="application/pdf")
                 
@@ -410,7 +512,7 @@ with tab_data:
                         ### 🔴 Misconception #[Number]: [Short Descriptive Name]
                         * **Target Item & TEKS:** Identify the specific question number(s), key TEKS, and distractor choice pattern (e.g., Question #5, Choice C - 42% of students).
                         * **1-2 Sentence Explanation:** A concise, sharp explanation of the exact cognitive flaw or misapplied logic leading to this error.
-                        * **Exploratory Addressing Strategy (60% Inquiry / CRA Focus):** Provide coaching feedback on how the teacher can address this misconception with students in an **exploratory/discovery way** (e.g., using a 4-person Kagan inquiry prompt, visual CRA model like balance mats or algebra tiles, or an error-critique stem) rather than just teaching the procedural step.
+                        * **Exploratory Addressing Strategy (60% Inquiry / CRA Focus):** Provide coaching feedback on how the teacher can address this misconception with students in an **exploratory/discovery way** (e.g., using a 4-person POGIL inquiry prompt, visual CRA model like balance mats or algebra tiles, or an error-critique stem) rather than just teaching the procedural step.
                         
                         End with a brief, encouraging coaching summary highlighting how correcting these 4 key gaps will elevate Domain 1 STAAR performance.
                         """
@@ -430,7 +532,7 @@ with tab_data:
                     * **Target Item & TEKS:** Question #4 | TEKS {selected_teks} | Distractor C chosen by 48% of students.
                     * **1-2 Sentence Explanation:** Students attached the variable rate to the one-time subscription setup fee instead of multiplying it by recurring data usage. This stems from reading key terms in isolation rather than analyzing rate of change.
                     * **Exploratory Addressing Strategy:**  
-                      * **Visual CRA Activity:** Have 4-person Kagan teams build a Visual Balance Board comparing 1 month vs 3 months of usage.  
+                      * **Visual CRA Activity:** Have 4-person POGIL teams build a Visual Balance Board comparing 1 month vs 3 months of usage.  
                       * **Inquiry Prompt Stem:** *"Team Member 2, test $x=0$ on Choice C. Does paying $0 in usage still cost $0 total under this plan? Why or why not?"*
 
                     ---
@@ -487,7 +589,7 @@ with tab_cluster:
                 DEBRIEF PROTOCOL: REFLECTIVE INQUIRY (NON-DIRECTIVE DISCOVERY)
                 1. AFFIRMATION: Open with sincere, authentic praise for teacher preparation and classroom climate.
                 2. GUIDED REFLECTION (SEE IT): Provide 2-3 open-ended inquiry questions that guide the teacher to notice the gap between current student discourse and NIET Level 5 Exemplary questioning/thinking.
-                3. CO-CONSTRUCTED ACTION STEP (NAME IT): Formulate open-ended prompts for the coach to help the teacher name their own bite-sized action step (e.g., embedding Kagan 4-person team sentence stems or DOK-3 error critiques).
+                3. CO-CONSTRUCTED ACTION STEP (NAME IT): Formulate open-ended prompts for the coach to help the teacher name their own bite-sized action step (e.g., embedding POGIL 4-person team sentence stems or DOK-3 error critiques).
                 4. PRACTICE & COMMITMENT (DO IT): Guide the coach on co-scripting a 2-minute roll-out prompt for tomorrow's class.
                 """
                 response = client.models.generate_content(
@@ -508,11 +610,11 @@ with tab_cluster:
                 
                 **1. See It (Guiding Discovery):**
                 * *"When you look at student responses during guided practice, how would you describe the balance between procedural recall vs. students defending their reasoning?"*
-                * *"How might providing a 4-person Kagan structure with sentence stems change who is doing the heavy lifting during problem-solving?"*
+                * *"How might providing a 4-person POGIL structure with Accountable Talk stems change who is doing the heavy lifting during problem-solving?"*
                 
                 **2. Name It (Teacher-Discovered Action Step):**
                 * *"Looking at the NIET Rubric for Thinking and Problem Solving, what is one shift we could make in tomorrow's warmup to give students ownership of error critique?"*
                 
                 **3. Do It (Co-Scripting Practice):**
-                * *"Let's take 2 minutes right now to co-script tomorrow's Kagan sentence stem for your mobile phone data plan problem!"*
+                * *"Let's take 2 minutes right now to co-script tomorrow's POGIL sentence stem for your mobile phone data plan problem!"*
                 """)
