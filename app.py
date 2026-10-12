@@ -621,4 +621,76 @@ with tab_data:
                         
                         prompt_contents.append(f"{system_prompt}\n\nTest Content:\n{test_file_text}\n\nStudent Item Response Data:\n{csv_summary_str}")
                         
-                        response = client.models.generate
+                        response = client.models.generate_content(
+                            model="gemini-1.5-pro",
+                            contents=prompt_contents
+                        )
+                        st.markdown(response.text)
+                else:
+                    st.markdown("### 📊 Sample Preview (Add Gemini API Key to run live file analysis)")
+                    st.markdown(f"""
+                    ### 🔴 Misconception #1: Confusing Constant Base Fees with Variable Rates
+                    * **Target Item & TEKS:** Question #4 | TEKS {selected_teks} | Distractor C chosen by 48% of students.
+                    * **1-2 Sentence Explanation:** Students attached the variable rate to the one-time subscription setup fee instead of multiplying it by recurring data usage. This stems from reading key terms in isolation rather than analyzing rate of change.
+                    * **Exploratory Addressing Strategy:**  
+                      * **Visual CRA Activity:** Have 4-person POGIL teams build a Visual Balance Board comparing 1 month vs 3 months of usage.  
+                      * **Inquiry Prompt Stem:** *"Team Member 2, test $x=0$ on Choice C. Does paying $0 in usage still cost $0 total under this plan? Why or why not?"*
+                    """)
+            except Exception as e:
+                st.error(f"Error processing files: {e}")
+
+# ------------------------------------------------------------------------------
+# TAB 4: PLC CLUSTER & REFLECTIVE INQUIRY COACH
+# ------------------------------------------------------------------------------
+with tab_cluster:
+    st.subheader("1-on-1 Coaching Debrief & Reflective Inquiry Coach")
+    st.caption("Structures post-observation conferences using the Reflective Inquiry Protocol—guiding the coach with open-ended prompts so the teacher self-discovers instructional gaps.")
+
+    col_c1, col_c2 = st.columns([1, 1])
+    with col_c1:
+        observation_notes = st.text_area(
+            "Paste Observation Notes or Growth Goal:",
+            height=160,
+            value=f"Teacher led a guided lesson on {selected_teks}. Teacher asked procedural questions ('What is step 1?'). Students worked silently on worksheets with minimal discourse."
+        )
+        btn_cluster = st.button("📋 Generate Reflective Inquiry Debrief Guide", type="primary", use_container_width=True)
+
+    with col_c2:
+        if btn_cluster:
+            clean_notes = sanitize_text_pii(observation_notes)
+            if client:
+                system_prompt = f"""
+                You are a Master Instructional Coach guiding a 1-on-1 post-observation teacher conference.
+                
+                DEBRIEF PROTOCOL: REFLECTIVE INQUIRY (NON-DIRECTIVE DISCOVERY)
+                1. AFFIRMATION: Open with sincere, authentic praise for teacher preparation and classroom climate.
+                2. GUIDED REFLECTION (SEE IT): Provide 2-3 open-ended inquiry questions guiding the teacher to notice the gap between current student discourse and NIET Level 5 Exemplary questioning/thinking.
+                3. CO-CONSTRUCTED ACTION STEP (NAME IT): Formulate open-ended prompts for the coach to help the teacher name their own bite-sized action step (e.g., embedding POGIL 4-person team sentence stems or DOK-3 error critiques).
+                4. PRACTICE & COMMITMENT (DO IT): Guide the coach on co-scripting a 2-minute roll-out prompt for tomorrow's class.
+                """
+                response = client.models.generate_content(
+                    model="gemini-1.5-pro",
+                    contents=f"{system_prompt}\n\nObservation Notes:\n{clean_notes}"
+                )
+                st.markdown(response.text)
+            else:
+                st.markdown("""
+                <div class="glow-card">
+                    <h4>🌟 Affirming Opening</h4>
+                    <p><i>"Thank you for welcoming me into your classroom! Your lesson pacing was smooth, and your clear board work gave students a solid visual anchor."</i></p>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                st.markdown("""
+                ### ❓ Reflective Inquiry Script for Coach
+                
+                **1. See It (Guiding Discovery):**
+                * *"When you look at student responses during guided practice, how would you describe the balance between procedural recall vs. students defending their reasoning?"*
+                * *"How might providing a 4-person POGIL structure with Accountable Talk stems change who is doing the heavy lifting during problem-solving?"*
+                
+                **2. Name It (Teacher-Discovered Action Step):**
+                * *"Looking at the NIET Rubric for Thinking and Problem Solving, what is one shift we could make in tomorrow's warmup to give students ownership of error critique?"*
+                
+                **3. Do It (Co-Scripting Practice):**
+                * *"Let's take 2 minutes right now to co-script tomorrow's POGIL sentence stem for your mobile phone data plan problem!"*
+                """)
