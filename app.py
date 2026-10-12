@@ -3,6 +3,9 @@ import os
 import io
 import pandas as pd
 import streamlit as st
+import pypdf
+import docx
+from pptx import Presentation
 from google import genai
 from google.genai import types
 
@@ -53,7 +56,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ==============================================================================
-# 2. FERPA SANITIZATION ENGINE (OPTION A COMPLIANCE)
+# 2. FERPA SANITIZATION & MULTI-FORMAT FILE PARSER ENGINE
 # ==============================================================================
 PII_COLUMN_KEYWORDS = [
     'first name', 'last name', 'student name', 'full name', 'student_name',
@@ -85,8 +88,83 @@ def sanitize_text_pii(text: str) -> str:
     text = re.sub(r'\b\d{3}[-.\s]?\d{3}[-.\s]?\d{4}\b', '[REDACTED_PHONE]', text)
     return text
 
+def extract_content_from_file(uploaded_file) -> tuple[str, types.Part | None]:
+    """
+    Extracts text from PDF, Word (.docx), PowerPoint (.pptx), Excel (.xlsx), CSV, or TXT.
+    Returns (extracted_text_content, optional_gemini_pdf_part).
+    """
+    file_name = uploaded_file.name.lower()
+    file_bytes = uploaded_file.read()
+    uploaded_file.seek(0)
+    
+    extracted_text = ""
+    pdf_part = None
+    
+    # PDF Files
+    if file_name.endswith('.pdf'):
+        pdf_part = types.Part.from_bytes(data=file_bytes, mime_type="application/pdf")
+        try:
+            reader = pypdf.PdfReader(io.BytesIO(file_bytes))
+            for i, page in enumerate(reader.pages):
+                page_text = page.extract_text() or ""
+                extracted_text += f"\n--- PAGE {i+1} ---\n{page_text}"
+        except Exception as e:
+            extracted_text = f"[PDF Content Loaded: {file_name}]"
+            
+    # Word Documents (Google Docs / .docx)
+    elif file_name.endswith(('.docx', '.doc')):
+        try:
+            doc = docx.Document(io.BytesIO(file_bytes))
+            full_text = []
+            for p in doc.paragraphs:
+                if p.text.strip():
+                    full_text.append(p.text)
+            for table in doc.tables:
+                for row in table.rows:
+                    full_text.append(" | ".join([cell.text.strip() for cell in row.cells]))
+            extracted_text = "\n".join(full_text)
+        except Exception as e:
+            extracted_text = f"[Word Document Content from {file_name}]"
+            
+    # PowerPoint Presentations (Google Slides / .pptx)
+    elif file_name.endswith(('.pptx', '.ppt')):
+        try:
+            prs = Presentation(io.BytesIO(file_bytes))
+            slides_text = []
+            for i, slide in enumerate(prs.slides):
+                slide_content = [f"--- SLIDE {i+1} ---"]
+                for shape in slide.shapes:
+                    if hasattr(shape, "text") and shape.text.strip():
+                        slide_content.append(shape.text.strip())
+                slides_text.append("\n".join(slide_content))
+            extracted_text = "\n\n".join(slides_text)
+        except Exception as e:
+            extracted_text = f"[PowerPoint Presentation Content from {file_name}]"
+
+    # Excel Spreadsheets (Google Sheets / .xlsx)
+    elif file_name.endswith(('.xlsx', '.xls')):
+        try:
+            excel_df = pd.read_excel(io.BytesIO(file_bytes))
+            extracted_text = f"--- EXCEL SPREADSHEET DATA ---\n" + excel_df.to_markdown(index=False)
+        except Exception as e:
+            extracted_text = f"[Excel Data Content from {file_name}]"
+
+    # CSV Files
+    elif file_name.endswith('.csv'):
+        try:
+            csv_df = pd.read_csv(io.BytesIO(file_bytes))
+            extracted_text = f"--- CSV DATA ---\n" + csv_df.to_markdown(index=False)
+        except Exception:
+            extracted_text = file_bytes.decode('utf-8', errors='ignore')
+
+    # Plain Text Files
+    else:
+        extracted_text = file_bytes.decode('utf-8', errors='ignore')
+        
+    return extracted_text, pdf_part
+
 # ==============================================================================
-# 3. SIDEBAR CONFIGURATION & TEKS DATABASES
+# 3. SIDEBAR CONFIGURATION & COMPLETE TEKS DATABASES
 # ==============================================================================
 TEKS_7TH_MATH = [
     "7.2A - Sets & Subsets of Rational Numbers",
@@ -250,11 +328,11 @@ tab_elevator, tab_assess, tab_data, tab_cluster = st.tabs([
 ])
 
 # ------------------------------------------------------------------------------
-# TAB 1: NIET LESSON ELEVATOR (POGIL + COMPLEX INSTRUCTION + HYBRID ARTIFACT)
+# TAB 1: NIET LESSON ELEVATOR (MULTI-FORMAT FILE UPLOADER)
 # ------------------------------------------------------------------------------
 with tab_elevator:
-    st.subheader("Elevate Lesson Draft or PDF/Slides to NIET Level 5")
-    st.caption("Upload a lesson plan PDF or Google Slides export, select primary and secondary NIET indicators, and receive slide-by-slide POGIL guided inquiry, Complex Instruction status interventions, and EB/SPED scaffolds.")
+    st.subheader("Elevate Lesson Draft or File Upload to NIET Level 5")
+    st.caption("Upload a PDF, Word Doc (Google Docs), PowerPoint / Google Slides (.pptx), Excel / Google Sheets (.xlsx), CSV, or TXT file to receive slide-by-slide or page-by-page POGIL guided inquiry, Complex Instruction status interventions, and EB/SPED scaffolds.")
 
     col_e1, col_e2 = st.columns([1, 1])
     
@@ -262,7 +340,7 @@ with tab_elevator:
         primary_indicator = st.selectbox(
             "Primary NIET Indicator Focus:",
             [ind for ind in NIET_ALL_INDICATORS if ind != "None"],
-            index=5 # Questioning
+            index=5 # Default to Questioning
         )
         
         secondary_indicator = st.selectbox(
@@ -271,10 +349,10 @@ with tab_elevator:
             index=0
         )
         
-        uploaded_lesson_pdf = st.file_uploader(
-            "Upload Lesson Plan PDF or Google Slides (Exported as .pdf):",
-            type=["pdf"],
-            key="lesson_pdf_upload"
+        uploaded_lesson_file = st.file_uploader(
+            "Upload Lesson File (PDF, Word, Google Slides/PPTX, Google Sheets/Excel, or TXT):",
+            type=["pdf", "docx", "doc", "pptx", "ppt", "xlsx", "xls", "csv", "txt"],
+            key="lesson_file_upload"
         )
         
         lesson_text_input = st.text_area(
@@ -287,17 +365,23 @@ with tab_elevator:
 
     with col_e2:
         if btn_elevate:
-            if not lesson_text_input and not uploaded_lesson_pdf:
-                st.warning("⚠️ Please paste lesson text or upload a PDF/Google Slides export to continue.")
+            if not lesson_text_input and not uploaded_lesson_file:
+                st.warning("⚠️ Please paste lesson text or upload a document to continue.")
             else:
                 clean_text = sanitize_text_pii(lesson_text_input)
+                file_text_content = ""
+                pdf_part = None
+                
+                if uploaded_lesson_file:
+                    file_text_content, pdf_part = extract_content_from_file(uploaded_lesson_file)
+                    st.info(f"📄 Loaded '{uploaded_lesson_file.name}' successfully.")
+                
+                combined_lesson_content = f"{clean_text}\n\n{file_text_content}".strip()
                 
                 with st.spinner("Analyzing lesson through POGIL, Complex Instruction, and NIET Level 5 lenses..."):
                     if client:
                         prompt_contents = []
-                        if uploaded_lesson_pdf:
-                            pdf_bytes = uploaded_lesson_pdf.read()
-                            pdf_part = types.Part.from_bytes(data=pdf_bytes, mime_type="application/pdf")
+                        if pdf_part:
                             prompt_contents.append(pdf_part)
                         
                         secondary_clause = f"and Secondary Focus: '{secondary_indicator}'" if secondary_indicator != "None" else ""
@@ -311,7 +395,7 @@ with tab_elevator:
                         MANDATORY PEDAGOGICAL REQUIREMENTS:
                         1. AFFIRMING GLOWS: Open with sincere, highly specific 'Glows' celebrating teacher intentionality and standards alignment.
                         2. NIET LEVEL 5 DESCRIPTOR ALIGNMENT: Explicitly cite NIET Rubric Level 5 descriptors for '{primary_indicator}' (and '{secondary_indicator}' if selected). Detail the exact shift needed to move from Level 3 (Proficient) to Level 5 (Exemplary).
-                        3. SLIDE-BY-SLIDE / PAGE-BY-PAGE ANNOTATIONS: If a PDF is attached, provide slide-by-slide or section-by-section actionable tweaks referencing exact page/slide numbers.
+                        3. SLIDE-BY-SLIDE / PAGE-BY-PAGE ANNOTATIONS: Provide actionable tweaks referencing exact page numbers, slide numbers, or document sections from the uploaded file.
                         4. POGIL GUIDED INQUIRY STRUCTURE: Structure student work into 3 POGIL phases:
                            - Phase 1: Exploration (Analyzing visual models/patterns before formulas).
                            - Phase 2: Concept Invention (Deriving rules through guided prompts).
@@ -343,7 +427,7 @@ with tab_elevator:
                         ```
                         """
                         
-                        prompt_contents.append(f"{system_prompt}\n\nLesson Input Text:\n{clean_text}")
+                        prompt_contents.append(f"{system_prompt}\n\nLesson Input Content:\n{combined_lesson_content}")
                         
                         response = client.models.generate_content(
                             model="gemini-1.5-pro",
@@ -361,8 +445,8 @@ with tab_elevator:
                         st.markdown(f"### 🎯 NIET Level 5 Indicator Shift ({primary_indicator})")
                         st.write(f"**NIET Exemplary Target for {primary_indicator}:** *'Tasks demand high-level thinking, require students to draw connections, and prompt metacognitive self-monitoring through structured group inquiry.'*")
                         
-                        st.markdown("### 📍 Slide-by-Slide POGIL Annotations")
-                        st.info("**Slide 2 (Warmup):** Convert procedural formula display into POGIL Exploration. Show two contrasting mobile phone plans visually using tape diagrams.\n\n**Slide 5 (Guided Practice):** Replace teacher lecture with POGIL Roles. Assign *Manager* to time-box exploration and *Recorder* to draw visual balance scales.")
+                        st.markdown("### 📍 Slide-by-Slide / Section-by-Section POGIL Annotations")
+                        st.info("**Slide 2 / Section 1 (Warmup):** Convert procedural formula display into POGIL Exploration. Show two contrasting mobile phone plans visually using tape diagrams.\n\n**Slide 5 / Section 2 (Guided Practice):** Replace teacher lecture with POGIL Roles. Assign *Manager* to time-box exploration and *Recorder* to draw visual balance scales.")
 
                         st.markdown("### 💬 Level 3 vs Level 5 Classroom Dialogue Script")
                         col_l3, col_l5 = st.columns(2)
@@ -471,8 +555,8 @@ with tab_assess:
 # TAB 3: EDUPHORIA DATA & MULTIMODAL MISCONCEPTION COACH
 # ------------------------------------------------------------------------------
 with tab_data:
-    st.subheader("Eduphoria Student Responses & Test PDF Analysis")
-    st.caption("Upload your Eduphoria student item response CSV along with the Test PDF. The AI cross-references distractor patterns with actual test questions to pinpoint misconceptions and structure exploratory reteach strategies.")
+    st.subheader("Eduphoria Student Responses & Test File Analysis")
+    st.caption("Upload your Eduphoria student item response CSV along with the Test file (PDF, Word, or Slides/PPTX). The AI cross-references distractor patterns with actual test questions to pinpoint misconceptions and structure exploratory reteach strategies.")
 
     st.info("🛡️ **FERPA Privacy Shield Active:** Uploaded student files are automatically anonymized in RAM (removing Student Names, Local IDs, and Teacher Names) before processing.")
 
@@ -480,21 +564,20 @@ with tab_data:
     with col_u1:
         uploaded_csv = st.file_uploader("1. Upload Eduphoria Student Item Responses (.csv):", type=["csv"], key="eduphoria_csv")
     with col_u2:
-        uploaded_pdf = st.file_uploader("2. Upload Assessment PDF Copy (.pdf):", type=["pdf"], key="test_pdf")
+        uploaded_pdf = st.file_uploader("2. Upload Assessment File (PDF, Word, or Slides/PPTX):", type=["pdf", "docx", "pptx", "txt"], key="test_pdf")
 
     btn_analyze_test = st.button("🔍 Analyze Test & Identify Top 4 Misconceptions", type="primary", use_container_width=True)
 
     if btn_analyze_test:
         if not uploaded_csv or not uploaded_pdf:
-            st.warning("⚠️ Please upload BOTH the Eduphoria student response CSV and the Assessment PDF to run the analysis.")
+            st.warning("⚠️ Please upload BOTH the Eduphoria student response CSV and the Assessment file to run the analysis.")
         else:
             try:
                 raw_df = pd.read_csv(uploaded_csv)
                 sanitized_df, dropped_pii = sanitize_eduphoria_dataframe(raw_df)
                 csv_summary_str = sanitized_df.to_csv(index=False)
                 
-                pdf_bytes = uploaded_pdf.read()
-                pdf_part = types.Part.from_bytes(data=pdf_bytes, mime_type="application/pdf")
+                test_file_text, pdf_part = extract_content_from_file(uploaded_pdf)
                 
                 st.success(f"🔒 FERPA Scrub Complete! Anonymized student data and loaded '{uploaded_pdf.name}'. Analyzing test items...")
 
@@ -504,7 +587,7 @@ with tab_data:
                         You are a Master Junior High Math Instructional Coach and STAAR Assessment Specialist for {selected_grade}.
                         
                         TASK:
-                        Analyze the attached Assessment PDF and the anonymized Eduphoria Student Response data ({selected_teks}).
+                        Analyze the attached Assessment file and the anonymized Eduphoria Student Response data ({selected_teks}).
                         Identify the TOP 4 MOST CRITICAL COMMON MISCONCEPTIONS across student responses.
                         
                         OUTPUT REQUIREMENTS FOR EACH OF THE 4 MISCONCEPTIONS:
@@ -517,16 +600,19 @@ with tab_data:
                         End with a brief, encouraging coaching summary highlighting how correcting these 4 key gaps will elevate Domain 1 STAAR performance.
                         """
                         
+                        prompt_contents = []
+                        if pdf_part:
+                            prompt_contents.append(pdf_part)
+                        
+                        prompt_contents.append(f"{system_prompt}\n\nTest Content:\n{test_file_text}\n\nStudent Item Response Data:\n{csv_summary_str}")
+                        
                         response = client.models.generate_content(
                             model="gemini-1.5-pro",
-                            contents=[
-                                pdf_part,
-                                f"{system_prompt}\n\nStudent Item Response Data:\n{csv_summary_str}"
-                            ]
+                            contents=prompt_contents
                         )
                         st.markdown(response.text)
                 else:
-                    st.markdown("### 📊 Sample Preview (Add Gemini API Key to run live PDF analysis)")
+                    st.markdown("### 📊 Sample Preview (Add Gemini API Key to run live file analysis)")
                     st.markdown(f"""
                     ### 🔴 Misconception #1: Confusing Constant Base Fees with Variable Rates
                     * **Target Item & TEKS:** Question #4 | TEKS {selected_teks} | Distractor C chosen by 48% of students.
