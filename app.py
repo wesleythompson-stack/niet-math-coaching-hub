@@ -19,7 +19,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-st.markdown("""
+st.markdown('''
 <style>
     .main-header {
         background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
@@ -53,7 +53,7 @@ st.markdown("""
         font-size: 0.85rem;
     }
 </style>
-""", unsafe_allow_html=True)
+''', unsafe_allow_html=True)
 
 # ==============================================================================
 # 2. FERPA SANITIZATION & MULTI-FORMAT FILE PARSER ENGINE
@@ -300,12 +300,12 @@ client = genai.Client(api_key=api_key) if api_key else None
 # ==============================================================================
 # 4. HEADER
 # ==============================================================================
-st.markdown(f"""
+st.markdown(f'''
 <div class="main-header">
     <h1 style="margin:0;">📐 NIET Math Coaching Intelligence Hub</h1>
     <p style="margin:0; opacity:0.9;">Tailored for <b>{selected_grade}</b> • TEKS-Adaptive CRA + Complex Instruction + Accountable Talk Moves • STAAR 2.0 Dual Alignment</p>
 </div>
-""", unsafe_allow_html=True)
+''', unsafe_allow_html=True)
 
 # ==============================================================================
 # 5. MAIN TABS
@@ -401,11 +401,11 @@ with tab_elevator:
                         st.markdown("<div class='glow-card'><h4>🌟 Authentic Affirming Glows</h4><p>Wonderful foundation!</p></div>", unsafe_allow_html=True)
 
 # ------------------------------------------------------------------------------
-# TAB 2: WARMUP & EXIT TICKET GENERATOR
+# TAB 2: WARMUP & EXIT TICKET GENERATOR (ACTIVITY-ALIGNED LAUNCH & EXIT SLIPS)
 # ------------------------------------------------------------------------------
 with tab_assess:
     st.subheader("Targeted Assessment & Lesson Objective Generator")
-    st.caption("Upload a lesson file to extract its objective and misconception.")
+    st.caption("Upload a lesson file/activity to automatically extract its core objective and target misconception. Generates a Warmup Launch into the lesson activity and an Exit Ticket assessing objective mastery.")
 
     col_a1, col_a2 = st.columns([1, 1])
     with col_a1:
@@ -418,7 +418,7 @@ with tab_assess:
         misconception_input = st.text_input(
             "Or manually enter / override Lesson Objective or Misconception:",
             value="",
-            placeholder="e.g., Objective: Write two-step inequalities from real-world plans."
+            placeholder="e.g., Objective: Write two-step inequalities from real-world mobile data plans."
         )
         
         btn_gen_assess = st.button("⚡ Extract Objective & Build Launch & Exit Ticket", type="primary", use_container_width=True)
@@ -434,7 +434,7 @@ with tab_assess:
                 
                 if uploaded_assess_file:
                     file_text_content, pdf_part = extract_content_from_file(uploaded_assess_file)
-                    st.info(f"📄 Loaded '{uploaded_assess_file.name}' for objective extraction.")
+                    st.info(f"📄 Loaded '{uploaded_assess_file.name}' for objective and misconception extraction.")
                 
                 combined_assess_input = f"Manual Input: {clean_text}\n\nUploaded Lesson Content:\n{file_text_content}".strip()
                 
@@ -448,26 +448,29 @@ with tab_assess:
                         p2 = f"TARGET TEKS: {selected_teks} ({selected_grade})."
                         p_rules = (
                             "TASK:\n"
-                            "1. Analyze uploaded lesson content/file or text.\n"
-                            "2. Extract Extracted Lesson Objective and Target Misconception / Prerequisite Gap.\n"
-                            "3. Generate a 5-minute Entrance Warmup as a LESSON LAUNCH.\n"
-                            "4. Generate a 5-minute Exit Ticket as an OBJECTIVE MASTERY ASSESSMENT.\n\n"
+                            "1. Analyze the uploaded lesson content/file or text.\n"
+                            "2. Extract and explicitly state:\n"
+                            "   - Extracted Lesson Objective: Core target taught in the uploaded lesson/activity.\n"
+                            "   - Target Misconception / Prerequisite Gap: Primary cognitive hurdle or prerequisite gap.\n"
+                            "3. Generate a 5-minute Entrance Warmup as a LESSON LAUNCH (activates prior knowledge / hooks students into the upcoming activity).\n"
+                            "4. Generate a 5-minute Exit Ticket as an OBJECTIVE MASTERY ASSESSMENT (directly evaluates mastery of the exact objective in the uploaded activity).\n\n"
                             "MANDATORY 4-OPTION MULTIPLE CHOICE RULE FOR BOTH WARMUP & EXIT TICKET:\n"
-                            "Every item MUST feature exactly 4 options (Option A, Option B, Option C, Option D):\n"
+                            "Every item MUST feature exactly 4 Multiple-Choice options (Option A, Option B, Option C, Option D):\n"
                             "- 1 Correct Answer\n"
-                            "- 2 Procedural / Conceptual Distractors\n"
-                            "- 1 Instant-Elimination Distractor (removable with ZERO computation via vocabulary or estimation)\n\n"
+                            "- 2 Procedural / Conceptual Distractors (common STAAR errors)\n"
+                            "- 1 Instant-Elimination Distractor (removable with ZERO computation using vocabulary or estimation - magnitude too big/small)\n\n"
                             "FORMATTING DIRECTIVES:\n"
-                            "1. NO HTML TAGS: No <br>, <b>, <div>. Use clean Markdown headers and line breaks.\n"
-                            "2. NO MARKDOWN TABLES FOR QUESTION ITEMS: Use clear bold section boxes and bullet points.\n"
-                            "3. CURRENCY VS MATH: Write currency as 'USD $10' in prose, but math equations in LaTeX like '$3g + 10 < 40$'.\n\n"
+                            "1. NO HTML TAGS: Banned raw HTML (no <br>, <b>, <div>). Use clean Markdown section headers (####) and standard line breaks.\n"
+                            "2. NO MARKDOWN TABLES FOR QUESTION ITEMS: Present student items using clear bold section boxes and bullet points.\n"
+                            "3. CURRENCY VS MATH: Write currency explicitly as 'USD $10' in prose, but math equations in LaTeX like '$3g + 10 < 40$'.\n\n"
                             "OUTPUT STRUCTURE REQUIRED:\n"
                             "### 🎯 Extracted Lesson Objective & TEKS Focus\n"
-                            "* **Objective:** [1-sentence clear objective]\n"
+                            "* **Objective:** [1-sentence clear objective derived from the uploaded activity]\n"
                             "* **Primary Misconception / Gap:** [1-2 sentence sharp explanation]\n\n"
                             "### 📝 Entrance Warmup: Lesson Launch\n"
+                            "*Purpose: Activates prerequisite concepts and hooks students into today's activity.*\n"
                             "#### 🟦 STUDENT-FACING LAUNCH QUESTION\n"
-                            "**Context:** [Real-world teen scenario]\n"
+                            "**Context:** [Real-world teen scenario connecting to the upcoming activity]\n"
                             "**Task:** [Question prompt]\n"
                             "* [ ] **Option A:** [Text/math]\n"
                             "* [ ] **Option B:** [Text/math]\n"
@@ -476,10 +479,11 @@ with tab_assess:
                             "#### 🟩 METACOGNITIVE DEFENSE & DISTRACTOR CRITIQUE\n"
                             "1. **Instant Elimination Task:** Identify option removable immediately via vocabulary or estimation.\n"
                             "* **Sentence Stem:** *\"Option [X] can be eliminated immediately because...\"*\n"
-                            "2. **Visual CRA Launch Task:** [Task setting up visual model]\n\n"
+                            "2. **Visual CRA Launch Task:** [Task setting up visual model for the activity]\n\n"
                             "### 🚪 Exit Ticket: Objective Mastery Assessment\n"
+                            "*Purpose: Evaluates student mastery of the exact objective in the uploaded activity.*\n"
                             "#### 🟦 STUDENT-FACING ASSESSMENT QUESTION\n"
-                            "**Context:** [Real-world teen scenario testing objective application]\n"
+                            "**Context:** [Real-world teen scenario evaluating full objective application from the activity]\n"
                             "**Task:** [Question prompt]\n"
                             "* [ ] **Option A:** [Text/math]\n"
                             "* [ ] **Option B:** [Text/math]\n"
@@ -488,10 +492,10 @@ with tab_assess:
                             "#### 🟩 METACOGNITIVE DEFENSE & DISTRACTOR CRITIQUE\n"
                             "1. **Instant Elimination Task:** Identify option unreasonable based on vocabulary/estimation.\n"
                             "* **Sentence Stem:** *\"Option [X] is unreasonable because...\"*\n"
-                            "2. **Objective Defense:** Explain why chosen option satisfies today's objective.\n\n"
+                            "2. **Objective Defense:** Explain why chosen option proves mastery of today's objective.\n\n"
                             "### ⚠️ Eduphoria Distractor Analysis Key\n"
-                            "* **Warmup Launch Key:** Option A (Correct), Distractor 1, Distractor 2, Distractor 3 (Instant Elimination).\n"
-                            "* **Exit Ticket Key:** Option A (Correct), Distractor 1, Distractor 2, Distractor 3 (Instant Elimination).\n"
+                            "* **Warmup Launch Key:** Option A (Correct), Distractor 1 (Procedural), Distractor 2 (Procedural), Distractor 3 (Instant Elimination via vocab/estimation).\n"
+                            "* **Exit Ticket Key:** Option A (Correct), Distractor 1 (Procedural), Distractor 2 (Procedural), Distractor 3 (Instant Elimination via vocab/estimation).\n"
                         )
                         system_prompt = f"{p1}\n{p2}\n\n{p_rules}"
                         prompt_contents.append(f"{system_prompt}\n\nInput Content:\n{combined_assess_input}")
@@ -503,7 +507,55 @@ with tab_assess:
                         st.markdown(response.text)
                     else:
                         st.subheader(f"Generated Assessment Slips: {selected_teks}")
-                        st.markdown("### 🎯 Extracted Lesson Objective & TEKS Focus")
+                        st.markdown("""
+                        ### 🎯 Extracted Lesson Objective & TEKS Focus
+                        * **Objective:** Students will model and solve two-step inequalities representing real-world gaming subscription budgets and verify boundary limits.
+                        * **Primary Misconception / Gap:** Students confuse one-time setup fees with recurring per-item rates when constructing multi-step inequalities.
+                        
+                        ---
+
+                        ### 📝 Entrance Warmup: Lesson Launch
+                        *Purpose: Activates prerequisite concepts and hooks students into today's activity.*
+
+                        #### 🟦 STUDENT-FACING LAUNCH QUESTION
+                        **Context:** Jordan is setting up a mobile cloud pass. The pass requires a **USD $10** one-time activation fee plus **USD $3** per game downloaded.
+                        
+                        **Task:** Which visual tape diagram structure correctly launches our model for spending under USD $40?
+                        * [ ] **Option A:** $3g + 10 < 40$
+                        * [ ] **Option B:** $10g + 3 < 40$
+                        * [ ] **Option C:** $3g + 10 > 40$
+                        * [ ] **Option D:** $3g + 10 < 4$
+
+                        #### 🟩 METACOGNITIVE DEFENSE & DISTRACTOR CRITIQUE
+                        1. **Instant Elimination Task:** Identify which option can be eliminated immediately without heavy calculation based on estimation.
+                        * **Sentence Stem:** *"Option D can be eliminated immediately because a spending limit of $4 is less than the $10 setup fee alone..."*
+                        2. **Visual CRA Launch Task:** Sketch a visual balance scale comparing the fixed $10 setup fee to the variable $3 downloads.
+
+                        ---
+
+                        ### 🚪 Exit Ticket: Objective Mastery Assessment
+                        *Purpose: Evaluates student mastery of the exact objective taught in the uploaded activity.*
+
+                        #### 🟦 STUDENT-FACING ASSESSMENT QUESTION
+                        **Context:** Jordan solved $-3x + 4 > 16$ to determine his remaining cloud storage allowance in gigabytes.
+                        
+                        **Task:** Select the correct boundary solution representing his storage allowance:
+                        * [ ] **Option A:** $x < -4$
+                        * [ ] **Option B:** $x > -4$
+                        * [ ] **Option C:** $x < 4$
+                        * [ ] **Option D:** $x < 400$
+
+                        #### 🟩 METACOGNITIVE DEFENSE & DISTRACTOR CRITIQUE
+                        1. **Instant Elimination Task:** Identify which option is unreasonable based on magnitude estimation.
+                        * **Sentence Stem:** *"Option D can be eliminated immediately because 400 gigabytes is far beyond our monthly account scale..."*
+                        2. **Objective Defense:** Explain how testing $x=0$ verifies that dividing by $-3$ reverses the inequality symbol.
+                        
+                        ---
+
+                        ### ⚠️ Eduphoria Distractor Analysis Key
+                        * **Warmup Launch Key:** Option A (Correct: $3g + 10 < 40$), Option B (Swapped rate with flat fee), Option C (Flipped inequality symbol), Option D (Instant Elimination: budget limit of $4 is impossible).
+                        * **Exit Ticket Key:** Option A (Correct: $x < -4$), Option B (Forgot sign flip), Option C (Sign arithmetic error), Option D (Instant Elimination: magnitude of 400 is unreasonable).
+                        """)
 
 # ------------------------------------------------------------------------------
 # TAB 3: EDUPHORIA DATA & MULTIMODAL MISCONCEPTION COACH
