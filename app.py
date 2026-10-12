@@ -318,7 +318,7 @@ tab_elevator, tab_assess, tab_data, tab_cluster = st.tabs([
 ])
 
 # ------------------------------------------------------------------------------
-# TAB 1: NIET LESSON ELEVATOR (REFINED COACHING ENGINE)
+# TAB 1: NIET LESSON ELEVATOR
 # ------------------------------------------------------------------------------
 with tab_elevator:
     st.subheader("Elevate Lesson Draft or File Upload to NIET Level 5")
@@ -469,63 +469,102 @@ Talk Move Prompt: "I want to add on to [Name]'s idea because testing x = 5 prove
 ===============================================================================""", language="text")
 
 # ------------------------------------------------------------------------------
-# TAB 2: WARMUP & EXIT TICKET GENERATOR (75% DUAL STAAR 2.0 ALIGNMENT)
+# TAB 2: WARMUP & EXIT TICKET GENERATOR (LESSON FILE MISCONCEPTION EXTRACTOR)
 # ------------------------------------------------------------------------------
 with tab_assess:
-    st.subheader("Targeted Assessment & DOK-3 Misconception Generator")
-    st.caption("Generates entrance warmups and exit tickets formatted with 75% STAAR 2.0 Dual Layouts (Tech-Enhanced Item paired with Metacognitive Defense & Distractor Critique) plus 25% Open-Ended DOK-3 Performance Tasks.")
+    st.subheader("Targeted Assessment & Misconception Generator")
+    st.caption("Upload a lesson plan, worksheet, slide deck, or assessment file (PDF, Word, Slides/PPTX, Excel, or TXT) to automatically identify embedded mathematical misconceptions and generate 75% STAAR 2.0 dual-layout warmups, exit tickets, and Eduphoria distractor keys.")
 
     col_a1, col_a2 = st.columns([1, 1])
     with col_a1:
-        misconception_input = st.text_input(
-            "Target Misconception / Common STAAR Error:",
-            value="Confusing constant base fees with variable rates in mobile data / streaming plans"
+        uploaded_assess_file = st.file_uploader(
+            "Upload Lesson File / Worksheet (PDF, Word, Google Slides/PPTX, Excel, TXT):",
+            type=["pdf", "docx", "doc", "pptx", "ppt", "xlsx", "xls", "csv", "txt"],
+            key="assess_file_upload"
         )
+        
+        misconception_input = st.text_input(
+            "Or manually enter / override Target Misconception:",
+            value="",
+            placeholder="e.g., Confusing constant base fees with variable rates in mobile data plans"
+        )
+        
         dok_level = st.selectbox("Select Cognitive Depth & Item Format Blend:", [
             "75% STAAR 2.0 Tech-Enhanced + Metacognitive Defense (Recommended)",
             "100% Open-Ended DOK-3 Performance Task & Proof"
         ])
-        btn_gen_assess = st.button("⚡ Build Assessment Slips & Distractor Analysis", type="primary", use_container_width=True)
+        
+        btn_gen_assess = st.button("⚡ Extract Misconception & Build Assessment Slips", type="primary", use_container_width=True)
 
     with col_a2:
         if btn_gen_assess:
-            if client:
-                system_prompt = f"""
-                You are a STAAR 2.0 Assessment Specialist and Math Instructional Coach for {selected_grade}.
-                TASK: Generate a 5-minute Entrance Warmup and Exit Slip for {selected_teks}.
-                
-                FORMATTING DIRECTIVE (75% OPTION C DUAL ALIGNMENT):
-                - 75% of generated items MUST feature a STAAR 2.0 Tech-Enhanced Question on the Left (Inline Choice, Multi-Select, Drag-and-Drop Table, or Equation Builder) paired immediately with a mandatory Metacognitive Defense & Distractor Critique on the Right.
-                - 25% of items can be pure open-ended DOK-3 performance tasks requiring a CRA visual sketch before symbolic solving.
-                - Include an Eduphoria Distractor Analysis Key detailing choices A, B, C, D and the cognitive flaw linked to each.
-                """
-                response = client.models.generate_content(
-                    model="gemini-1.5-pro",
-                    contents=f"{system_prompt}\n\nMisconception: {misconception_input}\nFormat Preference: {dok_level}"
-                )
-                st.markdown(response.text)
+            if not uploaded_assess_file and not misconception_input.strip():
+                st.warning("⚠️ Please upload a lesson file or enter a misconception to continue.")
             else:
-                st.subheader(f"Generated Assessment Slips: {selected_teks}")
-                st.markdown(f"""
-                ### 📝 Entrance Warmup (STAAR 2.0 Dual Layout - 75% Blend)
+                clean_text = sanitize_text_pii(misconception_input)
+                file_text_content = ""
+                pdf_part = None
                 
-                | **STAAR 2.0 Tech-Enhanced Item (Inline Choice / Drag & Drop)** | **Metacognitive Defense & Distractor Critique** |
-                | :--- | :--- |
-                | **Context:** Jordan is choosing a gaming pass. Plan X charges $10 flat plus $3/game. <br><br> Select the correct inequality to model keeping monthly costs under $40:<br> `[ $3g + 10 < 40 $ \| $10g + 3 < 40 $ \| $3g - 10 > 40 $ ]` | **Task 1:** Sketch a visual tape diagram of Plan X.<br><br>**Task 2:** Write 1 sentence explaining why placing the variable on $10 is a cognitive distractor error.<br><br> *Sentence Stem:* *"Student A's model fails because..."* |
-
-                ---
-
-                ### 🚪 Exit Slip (Metacognitive Justification)
-                > Solve $-3x + 4 > 16$ in the context of cloud storage limits. Plot your boundary on a number line.  
-                > **Accountable Defense Stem:** *"I verified my inequality sign direction by testing $x=0$, which proved..."*
+                if uploaded_assess_file:
+                    file_text_content, pdf_part = extract_content_from_file(uploaded_assess_file)
+                    st.info(f"📄 Loaded '{uploaded_assess_file.name}' for misconception analysis.")
                 
-                ---
+                combined_assess_input = f"Manual Input: {clean_text}\n\nUploaded Content:\n{file_text_content}".strip()
+                
+                with st.spinner("Analyzing lesson content to extract misconceptions and build STAAR 2.0 assessment slips..."):
+                    if client:
+                        prompt_contents = []
+                        if pdf_part:
+                            prompt_contents.append(pdf_part)
+                        
+                        system_prompt = f"""
+                        You are a STAAR 2.0 Assessment Specialist and Math Instructional Coach for {selected_grade}.
+                        
+                        TASK:
+                        1. Analyze the provided lesson content/file or manual misconception for TEKS {selected_teks}.
+                        2. Identify the PRIMARY MATHEMATICAL MISCONCEPTION / STUMBLING BLOCK embedded in the lesson or concept. Explicitly state this misconception in 1-2 sharp sentences at the top of your response under a '🔴 Extracted Primary Misconception' heading.
+                        3. Generate a 5-minute Entrance Warmup and Exit Slip specifically addressing this misconception.
+                        
+                        FORMATTING DIRECTIVE (75% OPTION C DUAL ALIGNMENT):
+                        - 75% of generated items MUST feature a STAAR 2.0 Tech-Enhanced Question on the Left (Inline Choice, Multi-Select, Drag-and-Drop Table, or Equation Builder) paired immediately with a mandatory Metacognitive Defense & Distractor Critique on the Right.
+                        - 25% of items can be pure open-ended DOK-3 performance tasks requiring a CRA visual sketch before symbolic solving.
+                        - Include an Eduphoria Distractor Analysis Key detailing choices A, B, C, D and the exact cognitive flaw linked to each distractor.
+                        """
+                        
+                        prompt_contents.append(f"{system_prompt}\n\nInput Content:\n{combined_assess_input}\nFormat Preference: {dok_level}")
+                        
+                        response = client.models.generate_content(
+                            model="gemini-1.5-pro",
+                            contents=prompt_contents
+                        )
+                        st.markdown(response.text)
+                    else:
+                        st.subheader(f"Generated Assessment Slips: {selected_teks}")
+                        st.markdown(f"""
+                        ### 🔴 Extracted Primary Misconception
+                        * **Identified Gap:** Students attach variable rates to one-time flat setup fees when writing linear equations or inequalities from verbal/real-world scenarios.
+                        
+                        ---
 
-                ### ⚠️ Eduphoria Distractor Analysis Key
-                * **Correct Answer:** $3g + 10 < 40$ ($x < -4$)
-                * **Distractor B ($10g + 3 < 40$):** Swapped fixed setup fee with variable rate per game.
-                * **Distractor C ($x > -4$):** Solved steps correctly but forgot to flip sign during negative division.
-                """)
+                        ### 📝 Entrance Warmup (STAAR 2.0 Dual Layout - 75% Blend)
+                        
+                        | **STAAR 2.0 Tech-Enhanced Item (Inline Choice / Drag & Drop)** | **Metacognitive Defense & Distractor Critique** |
+                        | :--- | :--- |
+                        | **Context:** Jordan is choosing a gaming pass. Plan X charges $10 flat plus $3/game. <br><br> Select the correct inequality to model keeping monthly costs under $40:<br> `[ $3g + 10 < 40 $ \| $10g + 3 < 40 $ \| $3g - 10 > 40 $ ]` | **Task 1:** Sketch a visual tape diagram of Plan X.<br><br>**Task 2:** Write 1 sentence explaining why placing the variable on $10 is a cognitive distractor error.<br><br> *Sentence Stem:* *"Student A's model fails because..."* |
+
+                        ---
+
+                        ### 🚪 Exit Slip (Metacognitive Justification)
+                        > Solve $-3x + 4 > 16$ in the context of cloud storage limits. Plot your boundary on a number line.  
+                        > **Accountable Defense Stem:** *"I verified my inequality sign direction by testing $x=0$, which proved..."*
+                        
+                        ---
+
+                        ### ⚠️ Eduphoria Distractor Analysis Key
+                        * **Correct Answer:** $3g + 10 < 40$ ($x < -4$)
+                        * **Distractor B ($10g + 3 < 40$):** Swapped fixed setup fee with variable rate per game.
+                        * **Distractor C ($x > -4$):** Solved steps correctly but forgot to flip sign during negative division.
+                        """)
 
 # ------------------------------------------------------------------------------
 # TAB 3: EDUPHORIA DATA & MULTIMODAL MISCONCEPTION COACH
@@ -582,76 +621,4 @@ with tab_data:
                         
                         prompt_contents.append(f"{system_prompt}\n\nTest Content:\n{test_file_text}\n\nStudent Item Response Data:\n{csv_summary_str}")
                         
-                        response = client.models.generate_content(
-                            model="gemini-1.5-pro",
-                            contents=prompt_contents
-                        )
-                        st.markdown(response.text)
-                else:
-                    st.markdown("### 📊 Sample Preview (Add Gemini API Key to run live file analysis)")
-                    st.markdown(f"""
-                    ### 🔴 Misconception #1: Confusing Constant Base Fees with Variable Rates
-                    * **Target Item & TEKS:** Question #4 | TEKS {selected_teks} | Distractor C chosen by 48% of students.
-                    * **1-2 Sentence Explanation:** Students attached the variable rate to the one-time subscription setup fee instead of multiplying it by recurring data usage. This stems from reading key terms in isolation rather than analyzing rate of change.
-                    * **Exploratory Addressing Strategy:**  
-                      * **Visual CRA Activity:** Have 4-person POGIL teams build a Visual Balance Board comparing 1 month vs 3 months of usage.  
-                      * **Inquiry Prompt Stem:** *"Team Member 2, test $x=0$ on Choice C. Does paying $0 in usage still cost $0 total under this plan? Why or why not?"*
-                    """)
-            except Exception as e:
-                st.error(f"Error processing files: {e}")
-
-# ------------------------------------------------------------------------------
-# TAB 4: PLC CLUSTER & REFLECTIVE INQUIRY COACH
-# ------------------------------------------------------------------------------
-with tab_cluster:
-    st.subheader("1-on-1 Coaching Debrief & Reflective Inquiry Coach")
-    st.caption("Structures post-observation conferences using the Reflective Inquiry Protocol—guiding the coach with open-ended prompts so the teacher self-discovers instructional gaps.")
-
-    col_c1, col_c2 = st.columns([1, 1])
-    with col_c1:
-        observation_notes = st.text_area(
-            "Paste Observation Notes or Growth Goal:",
-            height=160,
-            value=f"Teacher led a guided lesson on {selected_teks}. Teacher asked procedural questions ('What is step 1?'). Students worked silently on worksheets with minimal discourse."
-        )
-        btn_cluster = st.button("📋 Generate Reflective Inquiry Debrief Guide", type="primary", use_container_width=True)
-
-    with col_c2:
-        if btn_cluster:
-            clean_notes = sanitize_text_pii(observation_notes)
-            if client:
-                system_prompt = f"""
-                You are a Master Instructional Coach guiding a 1-on-1 post-observation teacher conference.
-                
-                DEBRIEF PROTOCOL: REFLECTIVE INQUIRY (NON-DIRECTIVE DISCOVERY)
-                1. AFFIRMATION: Open with sincere, authentic praise for teacher preparation and classroom climate.
-                2. GUIDED REFLECTION (SEE IT): Provide 2-3 open-ended inquiry questions guiding the teacher to notice the gap between current student discourse and NIET Level 5 Exemplary questioning/thinking.
-                3. CO-CONSTRUCTED ACTION STEP (NAME IT): Formulate open-ended prompts for the coach to help the teacher name their own bite-sized action step (e.g., embedding POGIL 4-person team sentence stems or DOK-3 error critiques).
-                4. PRACTICE & COMMITMENT (DO IT): Guide the coach on co-scripting a 2-minute roll-out prompt for tomorrow's class.
-                """
-                response = client.models.generate_content(
-                    model="gemini-1.5-pro",
-                    contents=f"{system_prompt}\n\nObservation Notes:\n{clean_notes}"
-                )
-                st.markdown(response.text)
-            else:
-                st.markdown("""
-                <div class="glow-card">
-                    <h4>🌟 Affirming Opening</h4>
-                    <p><i>"Thank you for welcoming me into your classroom! Your lesson pacing was smooth, and your clear board work gave students a solid visual anchor."</i></p>
-                </div>
-                """, unsafe_allow_html=True)
-                
-                st.markdown("""
-                ### ❓ Reflective Inquiry Script for Coach
-                
-                **1. See It (Guiding Discovery):**
-                * *"When you look at student responses during guided practice, how would you describe the balance between procedural recall vs. students defending their reasoning?"*
-                * *"How might providing a 4-person POGIL structure with Accountable Talk stems change who is doing the heavy lifting during problem-solving?"*
-                
-                **2. Name It (Teacher-Discovered Action Step):**
-                * *"Looking at the NIET Rubric for Thinking and Problem Solving, what is one shift we could make in tomorrow's warmup to give students ownership of error critique?"*
-                
-                **3. Do It (Co-Scripting Practice):**
-                * *"Let's take 2 minutes right now to co-script tomorrow's POGIL sentence stem for your mobile phone data plan problem!"*
-                """)
+                        response = client.models.generate
