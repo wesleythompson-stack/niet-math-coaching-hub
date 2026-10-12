@@ -35,29 +35,29 @@ st.markdown('''
         border-radius: 8px;
         margin-bottom: 1rem;
     }
-    .artifact-card {
-        background-color: #ffffff;
-        border: 2px solid #3b82f6;
-        padding: 1.5rem;
+    .chat-container {
+        background-color: #f8fafc;
+        border: 1px solid #e2e8f0;
         border-radius: 10px;
-        margin-top: 1rem;
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-    }
-    .role-badge {
-        background-color: #eff6ff;
-        border: 1px solid #bfdbfe;
-        color: #1e40af;
-        padding: 0.3rem 0.6rem;
-        border-radius: 4px;
-        font-weight: bold;
-        font-size: 0.85rem;
+        padding: 1rem;
+        margin-top: 1.5rem;
     }
 </style>
 ''', unsafe_allow_html=True)
 
 # ==============================================================================
-# 2. SESSION STATE INITIALIZATION FOR CHAT
+# 2. SESSION STATE INITIALIZATION FOR PERSISTENCE & CHAT
 # ==============================================================================
+if "elevator_output" not in st.session_state:
+    st.session_state.elevator_output = None
+if "elevator_history" not in st.session_state:
+    st.session_state.elevator_history = []
+
+if "assess_output" not in st.session_state:
+    st.session_state.assess_output = None
+if "assess_history" not in st.session_state:
+    st.session_state.assess_history = []
+
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = [
         {
@@ -330,11 +330,11 @@ tab_elevator, tab_assess, tab_data, tab_cluster, tab_chat = st.tabs([
 ])
 
 # ------------------------------------------------------------------------------
-# TAB 1: NIET LESSON ELEVATOR (SPECIFIC EXAMPLES & COACHING QUESTIONS)
+# TAB 1: NIET LESSON ELEVATOR WITH INLINE CHAT & FEEDBACK
 # ------------------------------------------------------------------------------
 with tab_elevator:
     st.subheader("Elevate Lesson Draft or File Upload to NIET Level 5")
-    st.caption("Upload a lesson file or paste your draft to receive concrete, specific feedback examples, rephrased questions, visual models, and targeted coaching questions.")
+    st.caption("Upload a lesson file or paste your draft to receive concrete feedback examples, rephrased questions, visual models, and targeted coaching questions.")
 
     col_e1, col_e2 = st.columns([1, 1])
     
@@ -363,9 +363,8 @@ with tab_elevator:
             placeholder=f"Example for {selected_grade}: Objective is to solve two-step inequalities or linear equations."
         )
 
-        btn_elevate = st.button("🚀 Generate Level 5 NIET Coaching Feedback Brief", type="primary", use_container_width=True)
+        btn_elevate = st.button("🚀 Generate Level 5 NIET Coaching Brief", type="primary", use_container_width=True)
 
-    with col_e2:
         if btn_elevate:
             if not lesson_text_input and not uploaded_lesson_file:
                 st.warning("⚠️ Please paste lesson text or upload a document to generate feedback.")
@@ -376,110 +375,104 @@ with tab_elevator:
                 
                 if uploaded_lesson_file:
                     file_text_content, pdf_part = extract_content_from_file(uploaded_lesson_file)
-                    st.info(f"📄 Loaded '{uploaded_lesson_file.name}' successfully.")
                 
                 combined_lesson_content = f"{clean_text}\n\n{file_text_content}".strip()
                 
-                with st.spinner("Analyzing lesson against NIET Level 5 Indicators & generating specific feedback..."):
+                with st.spinner("Analyzing lesson against NIET Level 5 Indicators..."):
                     if client:
                         prompt_contents = []
                         if pdf_part:
                             prompt_contents.append(pdf_part)
                         
                         sec_clause = f"and Secondary Focus: '{secondary_indicator}'" if secondary_indicator != "None" else ""
-                        
-                        p1 = f"You are a Master Junior High Math Instructional Coach for {selected_grade} specializing in the NIET (National Instruction for Effective Teaching) rubric."
+                        p1 = f"You are a Master Junior High Math Instructional Coach for {selected_grade} specializing in NIET rubrics."
                         p2 = f"PRIMARY NIET INDICATOR FOCUS: '{primary_indicator}' {sec_clause}."
                         p3 = f"TARGET TEKS: {selected_teks} ({selected_grade})."
                         
                         p_rules = (
-                            "YOU MUST PROVIDE CONCRETE, SPECIFIC EXAMPLES THROUGHOUT ALL SECTIONS:\n\n"
-                            "### 🌟 Section 1: Authentic Affirming Glows (With Concrete Evidence)\n"
-                            "- Cite 2 specific strengths directly from the submitted lesson text/file.\n"
-                            "- Quote exact lines or cite specific math problems provided in the lesson.\n\n"
-                            "### 🎯 Section 2: NIET Level 5 Coaching Grows & Concrete Revisions\n"
-                            "- Provide 3 high-leverage coaching recommendations for elevating the lesson to Level 5.\n"
-                            "- MANDATORY: For EVERY grow point, provide a concrete 'BEFORE vs. AFTER' example:\n"
-                            "  * **Original Teacher Prompt / Task (Before):** [Show standard/procedural version]\n"
-                            "  * **Elevated Level 5 Version (After):** [Show higher-order, inquiry-based version]\n"
-                            "- Include explicit CRA visual model examples (e.g., algebra tiles, tape diagrams, double number lines).\n\n"
+                            "YOU MUST PROVIDE A FULL 5-SECTION COACHING BRIEF WITH SPECIFIC EXAMPLES:\n"
+                            "### 🌟 Section 1: Authentic Affirming Glows (With Evidence)\n"
+                            "### 🎯 Section 2: NIET Level 5 Coaching Grows & Concrete BEFORE vs AFTER Revisions\n"
                             "### ❓ Section 3: Targeted Clarification & Reflection Questions for the Teacher\n"
-                            "- Ask 3 specific, non-judgmental coaching questions to clarify teacher intent and room setup:\n"
-                            "  1. A question about student grouping / accountable talk roles.\n"
-                            "  2. A question about proactive intervention for struggling learners.\n"
-                            "  3. A question about pacing or checks for understanding.\n\n"
                             "### 🗣️ Section 4: Verbatim Complex Instruction & Accountable Talk Script\n"
-                            "- Provide 2-3 specific Teacher Coaching Cues and Verbatim Classroom Scripts with exact mathematical phrasing.\n"
-                            "- Embed Accountable Talk moves: Revoicing, Reason-Checking, Adding On, and Wait Time.\n\n"
                             "### 📜 Section 5: Elevated Student Discovery Mat (POGIL Activity)\n"
-                            "- Provide the complete elevated POGIL student activity mat in clean Markdown.\n"
-                            "- Include a standalone ```text ``` code block with the plain copy-paste version.\n\n"
-                            "FORMATTING DIRECTIVES:\n"
-                            "1. NO HTML TAGS: Do NOT use raw HTML tags.\n"
-                            "2. NO MARKDOWN TABLES FOR COMPLEX MATH: Use bold section headers (####), bullet points, and blockquotes.\n"
-                            "3. CURRENCY: Format money as 'USD $10' in prose, and equations in LaTeX ($3g + 10 < 40$).\n"
                         )
                         system_prompt = f"{p1}\n{p2}\n{p3}\n\n{p_rules}"
-                        prompt_contents.append(f"{system_prompt}\n\nSubmitted Lesson Content:\n{combined_lesson_content}")
+                        prompt_contents.append(f"{system_prompt}\n\nSubmitted Content:\n{combined_lesson_content}")
                         
                         response = client.models.generate_content(
                             model="gemini-1.5-pro",
                             contents=prompt_contents
                         )
-                        st.markdown(response.text)
+                        st.session_state.elevator_output = response.text
+                        st.session_state.elevator_history = []
                     else:
-                        # Offline Fallback with Specific Examples & Clarification Questions
-                        st.markdown(f"""
-                        ### 🌟 Section 1: Authentic Affirming Glows (With Concrete Evidence)
-                        * **Clear Focus:** The draft directly targets **{selected_teks}** by establishing a real-world financial context.
-                        * **Real-World Hook:** Using real-world monthly costs gives students a concrete entry point into abstract algebraic expressions.
-
-                        ---
-
-                        ### 🎯 Section 2: NIET Level 5 Coaching Grows & Concrete Revisions ({primary_indicator})
+                        st.session_state.elevator_output = f"""
+                        ### 🌟 Section 1: Authentic Affirming Glows
+                        * **Clear Focus:** Targets **{selected_teks}** using real-world scenarios.
                         
-                        #### 1. Transform Direct Explanation into Student Inquiry
-                        * **Original Teacher Prompt (Before):** *"Class, to solve $3x + 10 < 40$, first subtract 10 from both sides, then divide by 3."*
-                        * **Elevated Level 5 Version (After):** *"Looking at our tape diagram with $3$ equal variable blocks and a fixed USD $10$ block totaling under USD $40$, which part of the balance can we remove first without changing the relationship? Explain to your partner."*
+                        ### 🎯 Section 2: NIET Level 5 Coaching Grows ({primary_indicator})
+                        * **Original Prompt (Before):** *"Solve $3x + 10 < 40$."*
+                        * **Elevated Version (After):** *"Model a balance scale comparing USD $10$ fixed cost with $3x$ recurring downloads."*
 
-                        #### 2. Embed Visual CRA (Concrete-Representational-Abstract) Scaffolding
-                        * **Original Task (Before):** Solving pure symbolic inequalities on paper.
-                        * **Elevated Level 5 Version (After):** Use a **Visual Balance Scale Model**:
-                          > Draw a balance scale with $3x$ blocks and a $10$-unit weight on the left side, and a $40$-unit weight on the right side. Ask: *"What single move simplifies both sides of the balance simultaneously?"*
+                        ### ❓ Section 3: Reflection Questions for the Teacher
+                        1. *"How will student pairs divide roles during the visual discovery phase?"*
+                        2. *"What scaffolding strategy will be used if students confuse setup fees with unit rates?"*
 
-                        #### 3. Shift Pacing to Student-Led Reasoning
-                        * **Original Question (Before):** *"What is $40 - 10$?"*
-                        * **Elevated Level 5 Version (After):** *"If we lower the budget ceiling from USD $40$ to USD $25$, how does that visually contract the boundary line on our number line model?"*
+                        ### 🗣️ Section 4: Verbatim Accountable Talk Script
+                        * **Teacher Cue:** *"Maya, can you rephrase Jordan's strategy in your own words?"*
+                        """
+                        st.session_state.elevator_history = []
 
-                        ---
+    with col_e2:
+        if st.session_state.elevator_output:
+            st.markdown(st.session_state.elevator_output)
+            
+            st.divider()
+            st.subheader("💬 Ask Follow-Up Questions or Provide Feedback")
+            st.caption("Ask the AI to adjust this lesson plan, rephrase questions, adapt for EL/ML students, or affirm the feedback below:")
 
-                        ### ❓ Section 3: Targeted Clarification & Reflection Questions for the Teacher
-                        1. **On Grouping & Student Roles:** *"How are roles assigned within student pairs during the visual discovery phase (e.g., Modeler, Questioner, Recorder) to ensure 100% active participation?"*
-                        2. **On Addressing Prerequisite Gaps:** *"What visual cue or quick check will you use if students struggle to differentiate between the fixed fee ($10$) and variable rate ($3x$)?"*
-                        3. **On Lesson Pacing:** *"At what specific timestamp in the 45-minute block will you transition from the visual CRA tape diagram to the symbolic inequality notation?"*
+            # Render inline chat history for Tab 1
+            for msg in st.session_state.elevator_history:
+                with st.chat_message(msg["role"]):
+                    st.markdown(msg["content"])
 
-                        ---
+            # Interactive Input for Tab 1
+            if elevator_feedback := st.chat_input("Ask a question, request changes, or leave feedback on this lesson brief...", key="chat_tab1"):
+                clean_fb = sanitize_text_pii(elevator_feedback)
+                st.session_state.elevator_history.append({"role": "user", "content": clean_fb})
+                
+                with st.chat_message("user"):
+                    st.markdown(clean_fb)
 
-                        ### 🗣️ Section 4: Verbatim Complex Instruction & Accountable Talk Script
-                        * **Coaching Cue (Revoicing):**
-                          > **Teacher Script:** *"I hear Maya saying that the USD $10$ setup fee happens only once regardless of how many games are downloaded. Jordan, can you rephrase Maya's point in your own words?"*
-                        * **Coaching Cue (Reason-Checking & Wait Time):**
-                          > **Teacher Script:** *"Take 10 seconds of silent think time... Why does dividing by a negative coefficient reverse our inequality arrow on the number line?"*
-
-                        ---
-
-                        ### 📜 Section 5: Elevated Student Discovery Mat
-                        #### 🟦 STUDENT INQUIRY MAT: {selected_teks}
-                        1. **Concrete Exploration:** Build a tape diagram comparing fixed activation fees versus recurring costs.
-                        2. **Partner Defense:** Test boundary values ($x = -4, 0, 4$) to verify inequality truth statements.
-                        """)
+                with st.chat_message("assistant"):
+                    if client:
+                        with st.spinner("Updating lesson brief based on your feedback..."):
+                            context_prompt = (
+                                f"You are a Master Math Coach for {selected_grade}.\n"
+                                f"TARGET TEKS: {selected_teks}\n\n"
+                                f"ORIGINAL GENERATED LESSON BRIEF:\n{st.session_state.elevator_output}\n\n"
+                                f"USER FEEDBACK / QUESTION:\n{clean_fb}\n\n"
+                                "DIRECTIVE: Answer the question or update the lesson brief accordingly. Use LaTeX for math ($2x + 5$). No raw HTML."
+                            )
+                            resp = client.models.generate_content(
+                                model="gemini-1.5-pro",
+                                contents=context_prompt
+                            )
+                            ai_fb_resp = resp.text
+                            st.markdown(ai_fb_resp)
+                            st.session_state.elevator_history.append({"role": "assistant", "content": ai_fb_resp})
+                    else:
+                        fallback_msg = "Thank you for the feedback! Connect your Gemini API key to receive real-time updates."
+                        st.markdown(fallback_msg)
+                        st.session_state.elevator_history.append({"role": "assistant", "content": fallback_msg})
 
 # ------------------------------------------------------------------------------
-# TAB 2: WARMUP & EXIT TICKET GENERATOR
+# TAB 2: WARMUP & EXIT TICKET GENERATOR WITH INLINE CHAT & FEEDBACK
 # ------------------------------------------------------------------------------
 with tab_assess:
     st.subheader("Targeted Assessment & Lesson Objective Generator")
-    st.caption("Upload a lesson file/activity to automatically extract its core objective and target misconception. Generates a Warmup Launch into the lesson activity and an Exit Ticket assessing objective mastery.")
+    st.caption("Upload a lesson file/activity to extract its core objective and generate an entrance launch warmup and objective mastery exit ticket.")
 
     col_a1, col_a2 = st.columns([1, 1])
     with col_a1:
@@ -497,7 +490,6 @@ with tab_assess:
         
         btn_gen_assess = st.button("⚡ Extract Objective & Build Launch & Exit Ticket", type="primary", use_container_width=True)
 
-    with col_a2:
         if btn_gen_assess:
             if not uploaded_assess_file and not misconception_input.strip():
                 st.warning("⚠️ Please upload a lesson file or enter an objective/misconception to continue.")
@@ -508,68 +500,23 @@ with tab_assess:
                 
                 if uploaded_assess_file:
                     file_text_content, pdf_part = extract_content_from_file(uploaded_assess_file)
-                    st.info(f"📄 Loaded '{uploaded_assess_file.name}' for objective and misconception extraction.")
                 
-                combined_assess_input = f"Manual Input: {clean_text}\n\nUploaded Lesson Content:\n{file_text_content}".strip()
+                combined_assess_input = f"Manual Input: {clean_text}\n\nUploaded Content:\n{file_text_content}".strip()
                 
-                with st.spinner("Extracting lesson objective and generating Lesson Launch Warmup and Objective Exit Ticket..."):
+                with st.spinner("Extracting lesson objective and generating Launch & Exit Ticket..."):
                     if client:
                         prompt_contents = []
                         if pdf_part:
                             prompt_contents.append(pdf_part)
                         
-                        p1 = f"You are a STAAR 2.0 Assessment Specialist and Math Instructional Coach for {selected_grade}."
+                        p1 = f"You are a STAAR 2.0 Assessment Specialist and Math Coach for {selected_grade}."
                         p2 = f"TARGET TEKS: {selected_teks} ({selected_grade})."
                         p_rules = (
-                            "TASK:\n"
-                            "1. Analyze the uploaded lesson content/file or text.\n"
-                            "2. Extract and explicitly state:\n"
-                            "   - Extracted Lesson Objective: Core target taught in the uploaded lesson/activity.\n"
-                            "   - Target Misconception / Prerequisite Gap: Primary cognitive hurdle or prerequisite gap.\n"
-                            "3. Generate a 5-minute Entrance Warmup as a LESSON LAUNCH (activates prior knowledge / hooks students into the upcoming activity).\n"
-                            "4. Generate a 5-minute Exit Ticket as an OBJECTIVE MASTERY ASSESSMENT (directly evaluates mastery of the exact objective in the uploaded activity).\n\n"
-                            "MANDATORY 4-OPTION MULTIPLE CHOICE RULE FOR BOTH WARMUP & EXIT TICKET:\n"
-                            "Every item MUST feature exactly 4 Multiple-Choice options (Option A, Option B, Option C, Option D):\n"
-                            "- 1 Correct Answer\n"
-                            "- 2 Procedural / Conceptual Distractors (common STAAR errors)\n"
-                            "- 1 Instant-Elimination Distractor (removable with ZERO computation using vocabulary or estimation - magnitude too big/small)\n\n"
-                            "FORMATTING DIRECTIVES:\n"
-                            "1. NO HTML TAGS: Banned raw HTML (no <br>, <b>, <div>). Use clean Markdown section headers (####) and standard line breaks.\n"
-                            "2. NO MARKDOWN TABLES FOR QUESTION ITEMS: Present student items using clear bold section boxes and bullet points.\n"
-                            "3. CURRENCY VS MATH: Write currency explicitly as 'USD $10' in prose, but math equations in LaTeX like '$3g + 10 < 40$'.\n\n"
-                            "OUTPUT STRUCTURE REQUIRED:\n"
-                            "### 🎯 Extracted Lesson Objective & TEKS Focus\n"
-                            "* **Objective:** [1-sentence clear objective derived from the uploaded activity]\n"
-                            "* **Primary Misconception / Gap:** [1-2 sentence sharp explanation]\n\n"
-                            "### 📝 Entrance Warmup: Lesson Launch\n"
-                            "*Purpose: Activates prerequisite concepts and hooks students into today's activity.*\n"
-                            "#### 🟦 STUDENT-FACING LAUNCH QUESTION\n"
-                            "**Context:** [Real-world teen scenario connecting to the upcoming activity]\n"
-                            "**Task:** [Question prompt]\n"
-                            "* [ ] **Option A:** [Text/math]\n"
-                            "* [ ] **Option B:** [Text/math]\n"
-                            "* [ ] **Option C:** [Text/math]\n"
-                            "* [ ] **Option D:** [Text/math]\n\n"
-                            "#### 🟩 METACOGNITIVE DEFENSE & DISTRACTOR CRITIQUE\n"
-                            "1. **Instant Elimination Task:** Identify option removable immediately via vocabulary or estimation.\n"
-                            "* **Sentence Stem:** *\"Option [X] can be eliminated immediately because...\"*\n"
-                            "2. **Visual CRA Launch Task:** [Task setting up visual model for the activity]\n\n"
-                            "### 🚪 Exit Ticket: Objective Mastery Assessment\n"
-                            "*Purpose: Evaluates student mastery of the exact objective in the uploaded activity.*\n"
-                            "#### 🟦 STUDENT-FACING ASSESSMENT QUESTION\n"
-                            "**Context:** [Real-world teen scenario evaluating full objective application from the activity]\n"
-                            "**Task:** [Question prompt]\n"
-                            "* [ ] **Option A:** [Text/math]\n"
-                            "* [ ] **Option B:** [Text/math]\n"
-                            "* [ ] **Option C:** [Text/math]\n"
-                            "* [ ] **Option D:** [Text/math]\n\n"
-                            "#### 🟩 METACOGNITIVE DEFENSE & DISTRACTOR CRITIQUE\n"
-                            "1. **Instant Elimination Task:** Identify option unreasonable based on vocabulary/estimation.\n"
-                            "* **Sentence Stem:** *\"Option [X] is unreasonable because...\"*\n"
-                            "2. **Objective Defense:** Explain why chosen option proves mastery of today's objective.\n\n"
-                            "### ⚠️ Eduphoria Distractor Analysis Key\n"
-                            "* **Warmup Launch Key:** Option A (Correct), Distractor 1 (Procedural), Distractor 2 (Procedural), Distractor 3 (Instant Elimination via vocab/estimation).\n"
-                            "* **Exit Ticket Key:** Option A (Correct), Distractor 1 (Procedural), Distractor 2 (Procedural), Distractor 3 (Instant Elimination via vocab/estimation).\n"
+                            "Generate:\n"
+                            "1. Extracted Objective & Target Misconception\n"
+                            "2. 5-min Warmup Lesson Launch (4 options: 1 correct, 2 procedural, 1 instant elimination via vocab/estimation)\n"
+                            "3. 5-min Exit Ticket Assessment (4 options: 1 correct, 2 procedural, 1 instant elimination)\n"
+                            "4. Eduphoria Distractor Analysis Key\n"
                         )
                         system_prompt = f"{p1}\n{p2}\n\n{p_rules}"
                         prompt_contents.append(f"{system_prompt}\n\nInput Content:\n{combined_assess_input}")
@@ -578,58 +525,72 @@ with tab_assess:
                             model="gemini-1.5-pro",
                             contents=prompt_contents
                         )
-                        st.markdown(response.text)
+                        st.session_state.assess_output = response.text
+                        st.session_state.assess_history = []
                     else:
-                        st.subheader(f"Generated Assessment Slips: {selected_teks}")
-                        st.markdown("""
+                        st.session_state.assess_output = f"""
                         ### 🎯 Extracted Lesson Objective & TEKS Focus
-                        * **Objective:** Students will model and solve two-step inequalities representing real-world gaming subscription budgets and verify boundary limits.
-                        * **Primary Misconception / Gap:** Students confuse one-time setup fees with recurring per-item rates when constructing multi-step inequalities.
-                        
-                        ---
+                        * **Objective:** Solve two-step inequalities representing mobile cloud pass subscriptions.
+                        * **Misconception:** Confusing one-time setup fees with recurring rates.
 
                         ### 📝 Entrance Warmup: Lesson Launch
-                        *Purpose: Activates prerequisite concepts and hooks students into today's activity.*
-
-                        #### 🟦 STUDENT-FACING LAUNCH QUESTION
-                        **Context:** Jordan is setting up a mobile cloud pass. The pass requires a **USD $10** one-time activation fee plus **USD $3** per game downloaded.
-                        
-                        **Task:** Which visual tape diagram structure correctly launches our model for spending under USD $40?
+                        **Task:** Jordan sets up a cloud pass with a USD $10 fee plus USD $3 per download. Spending under USD $40:
                         * [ ] **Option A:** $3g + 10 < 40$
                         * [ ] **Option B:** $10g + 3 < 40$
                         * [ ] **Option C:** $3g + 10 > 40$
                         * [ ] **Option D:** $3g + 10 < 4$
 
-                        #### 🟩 METACOGNITIVE DEFENSE & DISTRACTOR CRITIQUE
-                        1. **Instant Elimination Task:** Identify which option can be eliminated immediately without heavy calculation based on estimation.
-                        * **Sentence Stem:** *"Option D can be eliminated immediately because a spending limit of $4 is less than the $10 setup fee alone..."*
-                        2. **Visual CRA Launch Task:** Sketch a visual balance scale comparing the fixed $10 setup fee to the variable $3 downloads.
-
-                        ---
-
                         ### 🚪 Exit Ticket: Objective Mastery Assessment
-                        *Purpose: Evaluates student mastery of the exact objective taught in the uploaded activity.*
-
-                        #### 🟦 STUDENT-FACING ASSESSMENT QUESTION
-                        **Context:** Jordan solved $-3x + 4 > 16$ to determine his remaining cloud storage allowance in gigabytes.
-                        
-                        **Task:** Select the correct boundary solution representing his storage allowance:
+                        **Task:** Solve $-3x + 4 > 16$:
                         * [ ] **Option A:** $x < -4$
                         * [ ] **Option B:** $x > -4$
                         * [ ] **Option C:** $x < 4$
                         * [ ] **Option D:** $x < 400$
+                        """
+                        st.session_state.assess_history = []
 
-                        #### 🟩 METACOGNITIVE DEFENSE & DISTRACTOR CRITIQUE
-                        1. **Instant Elimination Task:** Identify which option is unreasonable based on magnitude estimation.
-                        * **Sentence Stem:** *"Option D can be eliminated immediately because 400 gigabytes is far beyond our monthly account scale..."*
-                        2. **Objective Defense:** Explain how testing $x=0$ verifies that dividing by $-3$ reverses the inequality symbol.
-                        
-                        ---
+    with col_a2:
+        if st.session_state.assess_output:
+            st.markdown(st.session_state.assess_output)
+            
+            st.divider()
+            st.subheader("💬 Ask Follow-Up Questions or Refine Assessment")
+            st.caption("Ask the AI to modify distractors, adjust difficulty, add sentence stems, or affirm the questions below:")
 
-                        ### ⚠️ Eduphoria Distractor Analysis Key
-                        * **Warmup Launch Key:** Option A (Correct: $3g + 10 < 40$), Option B (Swapped rate with flat fee), Option C (Flipped inequality symbol), Option D (Instant Elimination: budget limit of $4 is impossible).
-                        * **Exit Ticket Key:** Option A (Correct: $x < -4$), Option B (Forgot sign flip), Option C (Sign arithmetic error), Option D (Instant Elimination: magnitude of 400 is unreasonable).
-                        """)
+            # Render inline chat history for Tab 2
+            for msg in st.session_state.assess_history:
+                with st.chat_message(msg["role"]):
+                    st.markdown(msg["content"])
+
+            # Interactive Input for Tab 2
+            if assess_feedback := st.chat_input("Ask a question, request question adjustments, or leave feedback...", key="chat_tab2"):
+                clean_fb = sanitize_text_pii(assess_feedback)
+                st.session_state.assess_history.append({"role": "user", "content": clean_fb})
+                
+                with st.chat_message("user"):
+                    st.markdown(clean_fb)
+
+                with st.chat_message("assistant"):
+                    if client:
+                        with st.spinner("Adjusting assessment items based on feedback..."):
+                            context_prompt = (
+                                f"You are a STAAR 2.0 Assessment Specialist for {selected_grade}.\n"
+                                f"TARGET TEKS: {selected_teks}\n\n"
+                                f"ORIGINAL ASSESSMENT GENERATED:\n{st.session_state.assess_output}\n\n"
+                                f"USER REQUEST / FEEDBACK:\n{clean_fb}\n\n"
+                                "DIRECTIVE: Answer or re-generate adjusted assessment items. Keep 4 multiple-choice options with distractor keys. No raw HTML."
+                            )
+                            resp = client.models.generate_content(
+                                model="gemini-1.5-pro",
+                                contents=context_prompt
+                            )
+                            ai_assess_resp = resp.text
+                            st.markdown(ai_assess_resp)
+                            st.session_state.assess_history.append({"role": "assistant", "content": ai_assess_resp})
+                    else:
+                        fallback_msg = "Thank you for the feedback! Connect your Gemini API key to adjust items in real time."
+                        st.markdown(fallback_msg)
+                        st.session_state.assess_history.append({"role": "assistant", "content": fallback_msg})
 
 # ------------------------------------------------------------------------------
 # TAB 3: EDUPHORIA DATA & MULTIMODAL MISCONCEPTION COACH
@@ -658,7 +619,6 @@ with tab_data:
                 csv_summary_str = sanitized_df.to_csv(index=False)
                 
                 test_file_text, pdf_part = extract_content_from_file(uploaded_pdf)
-                
                 st.success(f"🔒 FERPA Scrub Complete! Loaded '{uploaded_pdf.name}'. Analyzing items...")
 
                 if client:
@@ -674,7 +634,7 @@ with tab_data:
                         if pdf_part:
                             prompt_contents.append(pdf_part)
                         
-                        prompt_contents.append(f"{system_prompt}\n\nTest Content:\n{test_file_text}\n\nStudent Response Data:\n{csv_summary_str}")
+                        prompt_contents.append(f"{system_prompt}\n\nTest Content:\n{test_file_text}\n\nStudent Data:\n{csv_summary_str}")
                         
                         response = client.models.generate_content(
                             model="gemini-1.5-pro",
@@ -682,7 +642,7 @@ with tab_data:
                         )
                         st.markdown(response.text)
                 else:
-                    st.markdown("### 📊 Sample Preview")
+                    st.markdown("### 📊 Sample Misconception Analysis")
             except Exception as e:
                 st.error(f"Error processing files: {e}")
 
@@ -720,13 +680,12 @@ with tab_cluster:
                 st.markdown("<div class='glow-card'><h4>🌟 Affirming Opening</h4></div>", unsafe_allow_html=True)
 
 # ------------------------------------------------------------------------------
-# TAB 5: INTERACTIVE CHAT & FEEDBACK ASSISTANT
+# TAB 5: GLOBAL CHAT ASSISTANT
 # ------------------------------------------------------------------------------
 with tab_chat:
-    st.subheader("💬 Interactive Coaching Chat & Feedback")
-    st.caption("Ask follow-up questions, request modifications to generated outputs, adapt items for specific accommodations, or submit feedback.")
+    st.subheader("💬 Global Coaching Assistant Chat")
+    st.caption("Ask general pedagogical questions, explore NIET indicators, or seek advice across topics.")
 
-    # Header controls
     col_chat_hdr1, col_chat_hdr2 = st.columns([5, 1])
     with col_chat_hdr2:
         if st.button("🗑️ Clear Chat", type="secondary", use_container_width=True):
@@ -738,37 +697,31 @@ with tab_chat:
             ]
             st.rerun()
 
-    # Display chat history
     for message in st.session_state.chat_history:
         with st.chat_message(message["role"]):
             st.markdown(message["content"])
 
-    # Interactive Chat Input
-    if chat_prompt := st.chat_input("Ask a question, request adjustments to a lesson/exit ticket, or leave feedback..."):
+    if chat_prompt := st.chat_input("Ask any math coaching question...", key="chat_global"):
         clean_chat_prompt = sanitize_text_pii(chat_prompt)
-        
-        # Store & Display User Message
         st.session_state.chat_history.append({"role": "user", "content": clean_chat_prompt})
+        
         with st.chat_message("user"):
             st.markdown(clean_chat_prompt)
 
-        # Generate Assistant Response
         with st.chat_message("assistant"):
             if client:
                 with st.spinner("Analyzing request..."):
-                    # Build System Context with active TEKS & Grade
                     system_context = (
                         f"You are a Master Junior High Math Instructional Coach for {selected_grade}.\n"
                         f"ACTIVE COURSE: {selected_grade}\n"
                         f"ACTIVE TEKS FOCUS: {selected_teks}\n\n"
                         "DIRECTIVES:\n"
-                        "1. Assist teachers and coaches with clarifying generated materials, scaffolding, accommodations, or adjusting questions.\n"
-                        "2. Respond with actionable, peer-to-peer instructional wisdom.\n"
-                        "3. Use LaTeX formatting for formal math expressions (e.g., $2x + 5 = 15$).\n"
+                        "1. Assist teachers and coaches with clarifying materials, scaffolding, accommodations, or adjusting questions.\n"
+                        "2. Respond with actionable instructional wisdom.\n"
+                        "3. Use LaTeX formatting for formal math expressions ($2x + 5 = 15$).\n"
                         "4. Do NOT use raw HTML tags."
                     )
                     
-                    # Format recent history for model prompt
                     history_context_str = ""
                     for msg in st.session_state.chat_history[-6:]:
                         role_title = "User" if msg["role"] == "user" else "Coach Assistant"
@@ -780,14 +733,10 @@ with tab_chat:
                         model="gemini-1.5-pro",
                         contents=full_prompt
                     )
-                    
                     ai_response_text = response.text
                     st.markdown(ai_response_text)
                     st.session_state.chat_history.append({"role": "assistant", "content": ai_response_text})
             else:
-                fallback_response = (
-                    "Thank you for your inquiry/feedback! When connected to a valid Gemini API key, "
-                    "I will generate adaptive answers, lesson tweaks, and real-time coaching support."
-                )
+                fallback_response = "Connect your Gemini API key to chat with the coaching assistant."
                 st.markdown(fallback_response)
                 st.session_state.chat_history.append({"role": "assistant", "content": fallback_response})
