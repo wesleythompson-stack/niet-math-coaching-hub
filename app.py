@@ -89,10 +89,6 @@ def sanitize_text_pii(text: str) -> str:
     return text
 
 def extract_content_from_file(uploaded_file) -> tuple[str, types.Part | None]:
-    """
-    Extracts text from PDF, Word (.docx), PowerPoint (.pptx), Excel (.xlsx), CSV, or TXT.
-    Returns (extracted_text_content, optional_gemini_pdf_part).
-    """
     file_name = uploaded_file.name.lower()
     file_bytes = uploaded_file.read()
     uploaded_file.seek(0)
@@ -100,7 +96,6 @@ def extract_content_from_file(uploaded_file) -> tuple[str, types.Part | None]:
     extracted_text = ""
     pdf_part = None
     
-    # PDF Files
     if file_name.endswith('.pdf'):
         pdf_part = types.Part.from_bytes(data=file_bytes, mime_type="application/pdf")
         try:
@@ -108,10 +103,9 @@ def extract_content_from_file(uploaded_file) -> tuple[str, types.Part | None]:
             for i, page in enumerate(reader.pages):
                 page_text = page.extract_text() or ""
                 extracted_text += f"\n--- PAGE {i+1} ---\n{page_text}"
-        except Exception as e:
+        except Exception:
             extracted_text = f"[PDF Content Loaded: {file_name}]"
             
-    # Word Documents (Google Docs / .docx)
     elif file_name.endswith(('.docx', '.doc')):
         try:
             doc = docx.Document(io.BytesIO(file_bytes))
@@ -123,10 +117,9 @@ def extract_content_from_file(uploaded_file) -> tuple[str, types.Part | None]:
                 for row in table.rows:
                     full_text.append(" | ".join([cell.text.strip() for cell in row.cells]))
             extracted_text = "\n".join(full_text)
-        except Exception as e:
+        except Exception:
             extracted_text = f"[Word Document Content from {file_name}]"
             
-    # PowerPoint Presentations (Google Slides / .pptx)
     elif file_name.endswith(('.pptx', '.ppt')):
         try:
             prs = Presentation(io.BytesIO(file_bytes))
@@ -138,18 +131,16 @@ def extract_content_from_file(uploaded_file) -> tuple[str, types.Part | None]:
                         slide_content.append(shape.text.strip())
                 slides_text.append("\n".join(slide_content))
             extracted_text = "\n\n".join(slides_text)
-        except Exception as e:
+        except Exception:
             extracted_text = f"[PowerPoint Presentation Content from {file_name}]"
 
-    # Excel Spreadsheets (Google Sheets / .xlsx)
     elif file_name.endswith(('.xlsx', '.xls')):
         try:
             excel_df = pd.read_excel(io.BytesIO(file_bytes))
             extracted_text = f"--- EXCEL SPREADSHEET DATA ---\n" + excel_df.to_markdown(index=False)
-        except Exception as e:
+        except Exception:
             extracted_text = f"[Excel Data Content from {file_name}]"
 
-    # CSV Files
     elif file_name.endswith('.csv'):
         try:
             csv_df = pd.read_csv(io.BytesIO(file_bytes))
@@ -157,7 +148,6 @@ def extract_content_from_file(uploaded_file) -> tuple[str, types.Part | None]:
         except Exception:
             extracted_text = file_bytes.decode('utf-8', errors='ignore')
 
-    # Plain Text Files
     else:
         extracted_text = file_bytes.decode('utf-8', errors='ignore')
         
@@ -313,7 +303,7 @@ client = genai.Client(api_key=api_key) if api_key else None
 st.markdown(f"""
 <div class="main-header">
     <h1 style="margin:0;">📐 NIET Math Coaching Intelligence Hub</h1>
-    <p style="margin:0; opacity:0.9;">Tailored for <b>{selected_grade}</b> • POGIL Inquiry + Complex Instruction + Accountable Talk • NIET Level 5 Framework</p>
+    <p style="margin:0; opacity:0.9;">Tailored for <b>{selected_grade}</b> • TEKS-Adaptive CRA + Complex Instruction + Accountable Talk Moves • STAAR 2.0 Dual Alignment</p>
 </div>
 """, unsafe_allow_html=True)
 
@@ -328,11 +318,11 @@ tab_elevator, tab_assess, tab_data, tab_cluster = st.tabs([
 ])
 
 # ------------------------------------------------------------------------------
-# TAB 1: NIET LESSON ELEVATOR (MULTI-FORMAT FILE UPLOADER)
+# TAB 1: NIET LESSON ELEVATOR (REFINED COACHING ENGINE)
 # ------------------------------------------------------------------------------
 with tab_elevator:
     st.subheader("Elevate Lesson Draft or File Upload to NIET Level 5")
-    st.caption("Upload a PDF, Word Doc (Google Docs), PowerPoint / Google Slides (.pptx), Excel / Google Sheets (.xlsx), CSV, or TXT file to receive slide-by-slide or page-by-page POGIL guided inquiry, Complex Instruction status interventions, and EB/SPED scaffolds.")
+    st.caption("Upload a PDF, Word Doc, Google Slides export (.pptx), Excel/Sheets (.xlsx), or TXT file. The AI analyzes uploaded content against selected NIET indicators, applying TEKS-adaptive CRA modeling, Complex Instruction dual-scripting, and full 5-move Accountable Talk rotations.")
 
     col_e1, col_e2 = st.columns([1, 1])
     
@@ -340,7 +330,7 @@ with tab_elevator:
         primary_indicator = st.selectbox(
             "Primary NIET Indicator Focus:",
             [ind for ind in NIET_ALL_INDICATORS if ind != "None"],
-            index=5 # Default to Questioning
+            index=5 # Questioning
         )
         
         secondary_indicator = st.selectbox(
@@ -392,42 +382,25 @@ with tab_elevator:
                         PRIMARY NIET INDICATOR: '{primary_indicator}' {secondary_clause}.
                         TARGET TEKS: {selected_teks} ({selected_grade}).
                         
-                        MANDATORY PEDAGOGICAL REQUIREMENTS:
-                        1. AFFIRMING GLOWS: Open with sincere, highly specific 'Glows' celebrating teacher intentionality and standards alignment.
-                        2. NIET LEVEL 5 DESCRIPTOR ALIGNMENT: Explicitly cite NIET Rubric Level 5 descriptors for '{primary_indicator}' (and '{secondary_indicator}' if selected). Detail the exact shift needed to move from Level 3 (Proficient) to Level 5 (Exemplary).
-                        3. SLIDE-BY-SLIDE / PAGE-BY-PAGE ANNOTATIONS: Provide actionable tweaks referencing exact page numbers, slide numbers, or document sections from the uploaded file.
-                        4. POGIL GUIDED INQUIRY STRUCTURE: Structure student work into 3 POGIL phases:
-                           - Phase 1: Exploration (Analyzing visual models/patterns before formulas).
-                           - Phase 2: Concept Invention (Deriving rules through guided prompts).
-                           - Phase 3: Application (Applying concept to a DOK-3 real-world teen scenario).
-                           Assign 4 specific roles: Manager, Recorder, Spokesperson, Reflector.
-                        5. COMPLEX INSTRUCTION & STATUS INTERVENTIONS: Design group-worthy multi-ability tasks (spatial, logical, verbal). Include specific coaching cues for 'Assigning Competence' to publicly validate low-status students making visual/conceptual contributions.
-                        6. ACCOUNTABLE TALK MOVES: Embed explicit student talk stems (Revoicing, Pressing for Reasoning, Adding On, Agreeing/Disagreeing with Proof).
-                        7. EB (ELPS) & SPED SCAFFOLDS: Provide sentence frames, visual CRA anchors (algebra tiles, balance scales), chunked steps, and cognate supports.
-                        8. HYBRID ARTIFACT REQUIREMENTS:
-                           - First, provide a formatted visual Markdown POGIL Student Card.
-                           - Immediately after, provide a clean, unformatted plain text copy block inside ```text ``` code block tags so teachers can click 'Copy' and paste cleanly into Google Docs or Microsoft Word.
-                        
-                        OUTPUT STRUCTURE REQUIRED:
-                        ### 🌟 Authentic Affirming Glows
-                        
-                        ### 🎯 NIET Level 5 Indicator Shift: {primary_indicator}
-                        
-                        ### 📍 Slide-by-Slide / Section-by-Section POGIL Annotations
-                        
-                        ### 💬 Classroom Dialogue Script (Level 3 Procedural vs Level 5 POGIL + Talk Moves)
-                        
-                        ### 🌐 EB (ELPS) & SPED Accessibility Scaffolds
-                        
-                        ### 🎨 Visual On-Screen POGIL Discovery Mat
-                        
-                        ### 📋 Copyable Plain-Text Version (For Google Docs / Word)
-                        ```text
-                        [Unformatted plain-text version of the POGIL Discovery Mat]
-                        ```
+                        MANDATORY PEDAGOGICAL DIRECTIVES:
+                        1. TEKS-ADAPTIVE CRA VISUAL MODELING: Dynamically select the optimal visual CRA tool for {selected_teks} (e.g., Algebra Tiles for equations/factoring, Visual Balance Scales for inequalities, Area Models/Grid Decompositions for composite shapes/polynomials, Coordinate Motion/Slope Triangles for linear graphs, or Double Number Lines/Tape Diagrams for rates/percents). Require students to sketch/construct the model BEFORE symbolic writing.
+                        2. DUAL-SCRIPTING FOR COMPLEX INSTRUCTION ('Assigning Competence'): Dynamically determine whether spatial intuition, pattern discovery, or error-detection is the easiest way to elevate group status. Provide both:
+                           - **Teacher Coaching Cue:** What the coach looks for during team observation.
+                           - **Verbatim Classroom Script:** Exact teacher words to publicly validate a low-status student's visual/conceptual contribution.
+                        3. FULL 5-MOVE ACCOUNTABLE TALK ROTATION: Embed explicit prompts for all 5 classic Chapin/Michaels moves across the dialogue:
+                           - Revoicing ("So what I hear you saying is...")
+                           - Repeat/Restate ("Who can restate Taylor's explanation in their own words?")
+                           - Agree/Disagree + Reason ("Do you agree or disagree, and what proof supports that?")
+                           - Adding On ("Who can build on this visual representation?")
+                           - Explicit Wait-Time Cues (Mandate 5-7 seconds of silence before student responses).
+                        4. POGIL GUIDED INQUIRY CYCLE: Structure student exploration into Phase 1 (Exploration), Phase 2 (Concept Invention), Phase 3 (Application) with 4 explicit roles (Manager, Recorder, Spokesperson, Reflector).
+                        5. EB (ELPS) & SPED ACCESSIBILITY: Provide visual cognate anchor cards, chunked manipulative steps, and sentence frames.
+                        6. HYBRID ARTIFACT OUTPUT:
+                           - Render a visual Markdown POGIL Discovery Mat.
+                           - Immediately follow with a clean, unformatted copy block inside ```text ``` code block tags for one-click pasting into Google Docs / Word.
                         """
                         
-                        prompt_contents.append(f"{system_prompt}\n\nLesson Input Content:\n{combined_lesson_content}")
+                        prompt_contents.append(f"{system_prompt}\n\nUploaded Lesson Input Content:\n{combined_lesson_content}")
                         
                         response = client.models.generate_content(
                             model="gemini-1.5-pro",
@@ -448,12 +421,12 @@ with tab_elevator:
                         st.markdown("### 📍 Slide-by-Slide / Section-by-Section POGIL Annotations")
                         st.info("**Slide 2 / Section 1 (Warmup):** Convert procedural formula display into POGIL Exploration. Show two contrasting mobile phone plans visually using tape diagrams.\n\n**Slide 5 / Section 2 (Guided Practice):** Replace teacher lecture with POGIL Roles. Assign *Manager* to time-box exploration and *Recorder* to draw visual balance scales.")
 
-                        st.markdown("### 💬 Level 3 vs Level 5 Classroom Dialogue Script")
+                        st.markdown("### 💬 Level 3 vs Level 5 Classroom Dialogue Script (5 Talk Moves)")
                         col_l3, col_l5 = st.columns(2)
                         with col_l3:
                             st.info("**LEVEL 3 (Procedural)**\n\n**Teacher:** 'What is step 1 to solve $2x + 5 = 15$?'\n\n**Student:** 'Subtract 5 from both sides.'\n\n**Teacher:** 'Correct, write that down.'")
                         with col_l5:
-                            st.success("**LEVEL 5 (POGIL + Accountable Talk Moves)**\n\n**Teacher:** 'Spokesperson from Team 3, revoice what the Reflector noticed about testing $x=5$ on your balance mat.'\n\n**Spokesperson:** 'Our team agrees that if we remove 5 unit tiles from both scales, the balance stays equal.'\n\n**Teacher (Assigning Competence):** 'Notice how Alex's visual model made it obvious why we subtract 5 first! Team 4, do you agree or disagree with Team 3's proof?'")
+                            st.success("**LEVEL 5 (POGIL + 5-Move Talk Rotation)**\n\n**Teacher (Wait Time 5-7s):** '...' *(Pauses 6s)*\n\n**Teacher (Revoicing):** 'Spokesperson from Team 3, revoice what the Reflector noticed about testing $x=5$ on your visual balance mat.'\n\n**Spokesperson:** 'Our team agrees that removing 5 unit tiles keeps both scales equal.'\n\n**Teacher (Assigning Competence - Coaching Cue: Highlighting Spatial Discovery):** 'Notice how Alex's balance drawing made it obvious why we subtract 5 first! Team 4, who can **add on** or **agree/disagree with proof** to Alex's model?'")
 
                         st.markdown("""
                         ### 🎨 Visual On-Screen POGIL Discovery Mat
@@ -464,10 +437,10 @@ with tab_elevator:
                                <span class="role-badge">Spokesperson</span> Class Share &nbsp;|&nbsp; 
                                <span class="role-badge">Reflector</span> Talk Moves Check</p>
                             <hr>
-                            <h4>Phase 1: Exploration</h4>
-                            <p>Compare Balance Scale A ($2x + 5 = 15$) and Scale B ($2x = 10$). What action was taken on Scale A to create Scale B?</p>
+                            <h4>Phase 1: Exploration (TEKS-Adaptive CRA)</h4>
+                            <p>Sketch a Visual Balance Scale for $2x + 5 = 15$ before writing symbolic steps. What action maintains scale balance?</p>
                             <h4>Phase 2: Concept Invention</h4>
-                            <p><b>Team Consensus Stem:</b> <i>"Our team derived the rule that subtracting equal quantities maintains scale balance because..."</i></p>
+                            <p><b>Team Consensus Stem:</b> <i>"Our team derived the rule that operating on an equation maintains equality because..."</i></p>
                             <h4>Phase 3: Application & Accountable Talk Move</h4>
                             <p><b>Talk Move Prompt:</b> <i>"I want to add on to [Name]'s idea because testing $x=5$ proves..."</i></p>
                         </div>
@@ -484,8 +457,8 @@ TEAM ROLES:
 - SPOKESPERSON: Shares out team reasoning during whole-class discussion.
 - REFLECTOR: Monitors use of Accountable Talk Stems within the group.
 
-PHASE 1: EXPLORATION (Visual Pattern Analysis)
-Compare Balance Scale A (2x + 5 = 15) and Scale B (2x = 10).
+PHASE 1: EXPLORATION (TEKS-Adaptive CRA Visual Sketch)
+Sketch Balance Scale A (2x + 5 = 15) and Scale B (2x = 10).
 Question: What specific action was taken on Scale A to create Scale B?
 
 PHASE 2: CONCEPT INVENTION (Derived Rule)
@@ -495,18 +468,12 @@ PHASE 3: APPLICATION & ACCOUNTABLE TALK
 Talk Move Prompt: "I want to add on to [Name]'s idea because testing x = 5 proves..."
 ===============================================================================""", language="text")
 
-                        st.markdown("""
-                        ### 🌐 EB (ELPS) & SPED Accessibility Scaffolds
-                        * **Emergent Bilingual Scaffold:** Provide visual vocabulary anchor cards pairing Spanish cognates (e.g., *Ecuación / Equation*, *Constante / Constant*) with concrete balance scale icons.
-                        * **SPED Scaffold:** Chunk POGIL Exploration into two discrete steps with pre-cut algebra tile manipulatives before symbolic recording.
-                        """)
-
 # ------------------------------------------------------------------------------
-# TAB 2: WARMUP & EXIT TICKET GENERATOR
+# TAB 2: WARMUP & EXIT TICKET GENERATOR (75% DUAL STAAR 2.0 ALIGNMENT)
 # ------------------------------------------------------------------------------
 with tab_assess:
     st.subheader("Targeted Assessment & DOK-3 Misconception Generator")
-    st.caption("Generates warmups and exit tickets targeting high-frequency STAAR distractors, utilizing teen contexts and requiring student error critique and justification.")
+    st.caption("Generates entrance warmups and exit tickets formatted with 75% STAAR 2.0 Dual Layouts (Tech-Enhanced Item paired with Metacognitive Defense & Distractor Critique) plus 25% Open-Ended DOK-3 Performance Tasks.")
 
     col_a1, col_a2 = st.columns([1, 1])
     with col_a1:
@@ -514,41 +481,50 @@ with tab_assess:
             "Target Misconception / Common STAAR Error:",
             value="Confusing constant base fees with variable rates in mobile data / streaming plans"
         )
-        dok_level = st.selectbox("Select Cognitive Depth:", ["DOK 3 - Error Critique & Flawed Logic Defense", "DOK 3 - Multi-Step Modeling & Proof"])
+        dok_level = st.selectbox("Select Cognitive Depth & Item Format Blend:", [
+            "75% STAAR 2.0 Tech-Enhanced + Metacognitive Defense (Recommended)",
+            "100% Open-Ended DOK-3 Performance Task & Proof"
+        ])
         btn_gen_assess = st.button("⚡ Build Assessment Slips & Distractor Analysis", type="primary", use_container_width=True)
 
     with col_a2:
         if btn_gen_assess:
             if client:
                 system_prompt = f"""
-                You are a STAAR Math Assessment Specialist for {selected_grade}.
+                You are a STAAR 2.0 Assessment Specialist and Math Instructional Coach for {selected_grade}.
                 TASK: Generate a 5-minute Entrance Warmup and Exit Slip for {selected_teks}.
-                REQUIREMENTS:
-                1. TEEN CONTEXT: Use scenarios like mobile gaming passes, cloud storage, streaming video data, or athletic stats.
-                2. DOK-3 ESCALATION & ERROR DEFENSE: Present flawed student solutions. Ask students to locate the misconception, correct it visually, and write a metacognitive defense.
-                3. EDUPHORIA DISTRACTOR KEY: Detail choices A, B, C, D and explain the exact cognitive mistake associated with each distractor.
+                
+                FORMATTING DIRECTIVE (75% OPTION C DUAL ALIGNMENT):
+                - 75% of generated items MUST feature a STAAR 2.0 Tech-Enhanced Question on the Left (Inline Choice, Multi-Select, Drag-and-Drop Table, or Equation Builder) paired immediately with a mandatory Metacognitive Defense & Distractor Critique on the Right.
+                - 25% of items can be pure open-ended DOK-3 performance tasks requiring a CRA visual sketch before symbolic solving.
+                - Include an Eduphoria Distractor Analysis Key detailing choices A, B, C, D and the cognitive flaw linked to each.
                 """
                 response = client.models.generate_content(
                     model="gemini-1.5-pro",
-                    contents=f"{system_prompt}\n\nMisconception: {misconception_input}\nDOK Target: {dok_level}"
+                    contents=f"{system_prompt}\n\nMisconception: {misconception_input}\nFormat Preference: {dok_level}"
                 )
                 st.markdown(response.text)
             else:
                 st.subheader(f"Generated Assessment Slips: {selected_teks}")
                 st.markdown(f"""
-                **WARMUP (Error Critique & Defense - DOK 3)**
-                > *Context:* Jordan is comparing gaming downloads. Plan X charges a $10 flat fee plus $3 per game. Student A wrote the inequality $10g + 3 < 40$ to find how many games he can download for under $40.  
-                > **Task:** Draw a visual tape diagram of Plan X. Explain why Student A's inequality is incorrect and rewrite the correct inequality.  
-                > **Sentence Stem:** *"Student A attached the variable to the wrong quantity because..."*
+                ### 📝 Entrance Warmup (STAAR 2.0 Dual Layout - 75% Blend)
                 
-                **EXIT SLIP (Metacognitive Justification - DOK 3)**
-                > Solve $-3x + 4 > 16$ in the context of streaming data limits. Plot your solution on a visual number line.  
-                > **Sentence Stem:** *"I verified my boundary arrow direction by testing $x=0$, which proved..."*
+                | **STAAR 2.0 Tech-Enhanced Item (Inline Choice / Drag & Drop)** | **Metacognitive Defense & Distractor Critique** |
+                | :--- | :--- |
+                | **Context:** Jordan is choosing a gaming pass. Plan X charges $10 flat plus $3/game. <br><br> Select the correct inequality to model keeping monthly costs under $40:<br> `[ $3g + 10 < 40 $ \| $10g + 3 < 40 $ \| $3g - 10 > 40 $ ]` | **Task 1:** Sketch a visual tape diagram of Plan X.<br><br>**Task 2:** Write 1 sentence explaining why placing the variable on $10 is a cognitive distractor error.<br><br> *Sentence Stem:* *"Student A's model fails because..."* |
+
+                ---
+
+                ### 🚪 Exit Slip (Metacognitive Justification)
+                > Solve $-3x + 4 > 16$ in the context of cloud storage limits. Plot your boundary on a number line.  
+                > **Accountable Defense Stem:** *"I verified my inequality sign direction by testing $x=0$, which proved..."*
                 
-                **⚠️ Eduphoria Distractor Analysis Key:**
-                * **Correct Answer:** $x < -4$
-                * **Distractor B ($x > -4$):** Solved algebraic steps correctly but forgot to flip the inequality sign when dividing by $-3$.
-                * **Distractor C ($x < -6$):** Sign error during subtraction ($16 - 4 = -12$).
+                ---
+
+                ### ⚠️ Eduphoria Distractor Analysis Key
+                * **Correct Answer:** $3g + 10 < 40$ ($x < -4$)
+                * **Distractor B ($10g + 3 < 40$):** Swapped fixed setup fee with variable rate per game.
+                * **Distractor C ($x > -4$):** Solved steps correctly but forgot to flip sign during negative division.
                 """)
 
 # ------------------------------------------------------------------------------
@@ -593,11 +569,11 @@ with tab_data:
                         OUTPUT REQUIREMENTS FOR EACH OF THE 4 MISCONCEPTIONS:
                         
                         ### 🔴 Misconception #[Number]: [Short Descriptive Name]
-                        * **Target Item & TEKS:** Identify the specific question number(s), key TEKS, and distractor choice pattern (e.g., Question #5, Choice C - 42% of students).
+                        * **Target Item & TEKS:** Identify specific question number(s), key TEKS, and distractor choice pattern (e.g., Question #5, Choice C - 42% of students).
                         * **1-2 Sentence Explanation:** A concise, sharp explanation of the exact cognitive flaw or misapplied logic leading to this error.
-                        * **Exploratory Addressing Strategy (60% Inquiry / CRA Focus):** Provide coaching feedback on how the teacher can address this misconception with students in an **exploratory/discovery way** (e.g., using a 4-person POGIL inquiry prompt, visual CRA model like balance mats or algebra tiles, or an error-critique stem) rather than just teaching the procedural step.
+                        * **Exploratory Addressing Strategy (60% Inquiry / CRA Focus):** Provide coaching feedback on how the teacher can address this misconception in an **exploratory/discovery way** (e.g., 4-person POGIL inquiry prompt, TEKS-adaptive visual CRA model like balance scales or algebra tiles, or an error-critique stem) rather than teaching procedural steps.
                         
-                        End with a brief, encouraging coaching summary highlighting how correcting these 4 key gaps will elevate Domain 1 STAAR performance.
+                        End with a brief coaching summary highlighting how correcting these 4 key gaps will elevate Domain 1 STAAR performance.
                         """
                         
                         prompt_contents = []
@@ -620,31 +596,6 @@ with tab_data:
                     * **Exploratory Addressing Strategy:**  
                       * **Visual CRA Activity:** Have 4-person POGIL teams build a Visual Balance Board comparing 1 month vs 3 months of usage.  
                       * **Inquiry Prompt Stem:** *"Team Member 2, test $x=0$ on Choice C. Does paying $0 in usage still cost $0 total under this plan? Why or why not?"*
-
-                    ---
-
-                    ### 🔴 Misconception #2: Neglecting Inequality Sign Reversal During Division
-                    * **Target Item & TEKS:** Question #8 | TEKS {selected_teks} | Distractor B chosen by 38% of students.
-                    * **1-2 Sentence Explanation:** Students correctly applied inverse operations to isolate the variable, but treated the inequality symbol like an equals sign during negative division.
-                    * **Exploratory Addressing Strategy:**  
-                      * **Discovery Activity:** Ask teams to plot test values $x=5$ and $x=-5$ on a horizontal scale mat.  
-                      * **Inquiry Prompt Stem:** *"Our team discovered that dividing by a negative number flips our arrow because testing $x=0$ proves..."*
-
-                    ---
-
-                    ### 🔴 Misconception #3: Incorrect Area Decomposition of Composite Figures
-                    * **Target Item & TEKS:** Question #11 | TEKS {selected_teks} | Distractor A chosen by 35% of students.
-                    * **1-2 Sentence Explanation:** Students added overlapping boundary lengths when computing total perimeter instead of decomposing the interior regions.
-                    * **Exploratory Addressing Strategy:**  
-                      * **Visual CRA Activity:** Provide color-coded grid overlays for students to physically cut and reassemble composite shapes before running calculations.
-
-                    ---
-
-                    ### 🔴 Misconception #4: Misinterpreting Direct Variation Scale Factors
-                    * **Target Item & TEKS:** Question #14 | TEKS {selected_teks} | Distractor D chosen by 31% of students.
-                    * **1-2 Sentence Explanation:** Students subtracted coordinate points ($y_2 - y_1$) rather than dividing to find the constant ratio $k = y/x$.
-                    * **Exploratory Addressing Strategy:**  
-                      * **Discovery Activity:** Have teams create a ratio table for 3 real-world scenarios and test if the ratio remains constant across all pairs.
                     """)
             except Exception as e:
                 st.error(f"Error processing files: {e}")
@@ -674,7 +625,7 @@ with tab_cluster:
                 
                 DEBRIEF PROTOCOL: REFLECTIVE INQUIRY (NON-DIRECTIVE DISCOVERY)
                 1. AFFIRMATION: Open with sincere, authentic praise for teacher preparation and classroom climate.
-                2. GUIDED REFLECTION (SEE IT): Provide 2-3 open-ended inquiry questions that guide the teacher to notice the gap between current student discourse and NIET Level 5 Exemplary questioning/thinking.
+                2. GUIDED REFLECTION (SEE IT): Provide 2-3 open-ended inquiry questions guiding the teacher to notice the gap between current student discourse and NIET Level 5 Exemplary questioning/thinking.
                 3. CO-CONSTRUCTED ACTION STEP (NAME IT): Formulate open-ended prompts for the coach to help the teacher name their own bite-sized action step (e.g., embedding POGIL 4-person team sentence stems or DOK-3 error critiques).
                 4. PRACTICE & COMMITMENT (DO IT): Guide the coach on co-scripting a 2-minute roll-out prompt for tomorrow's class.
                 """
