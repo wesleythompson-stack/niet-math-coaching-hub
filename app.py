@@ -330,11 +330,11 @@ tab_elevator, tab_assess, tab_data, tab_cluster, tab_chat = st.tabs([
 ])
 
 # ------------------------------------------------------------------------------
-# TAB 1: NIET LESSON ELEVATOR (WITH ENHANCED FEEDBACK DIRECTIVES)
+# TAB 1: NIET LESSON ELEVATOR (SPECIFIC EXAMPLES & COACHING QUESTIONS)
 # ------------------------------------------------------------------------------
 with tab_elevator:
     st.subheader("Elevate Lesson Draft or File Upload to NIET Level 5")
-    st.caption("Upload a PDF, Word Doc, Google Slides export (.pptx), Excel/Sheets (.xlsx), or TXT file to receive detailed NIET rubric feedback and an elevated lesson plan.")
+    st.caption("Upload a lesson file or paste your draft to receive concrete, specific feedback examples, rephrased questions, visual models, and targeted coaching questions.")
 
     col_e1, col_e2 = st.columns([1, 1])
     
@@ -360,7 +360,7 @@ with tab_elevator:
         lesson_text_input = st.text_area(
             "Or paste lesson text / objective here:",
             height=140,
-            placeholder=f"Example for {selected_grade}: Objective is to solve linear equations or two-step inequalities."
+            placeholder=f"Example for {selected_grade}: Objective is to solve two-step inequalities or linear equations."
         )
 
         btn_elevate = st.button("🚀 Generate Level 5 NIET Coaching Feedback Brief", type="primary", use_container_width=True)
@@ -380,7 +380,7 @@ with tab_elevator:
                 
                 combined_lesson_content = f"{clean_text}\n\n{file_text_content}".strip()
                 
-                with st.spinner("Analyzing lesson draft against NIET Level 5 Indicators & generating coaching brief..."):
+                with st.spinner("Analyzing lesson against NIET Level 5 Indicators & generating specific feedback..."):
                     if client:
                         prompt_contents = []
                         if pdf_part:
@@ -393,19 +393,29 @@ with tab_elevator:
                         p3 = f"TARGET TEKS: {selected_teks} ({selected_grade})."
                         
                         p_rules = (
-                            "YOU MUST PROVIDE A FULL 4-SECTION DETAILED COACHING BRIEF:\n\n"
-                            "### 🌟 Section 1: Authentic Affirming Glows\n"
-                            "- Detail 2-3 specific instructional strengths in the submitted material aligned to the target TEKS and NIET indicator.\n\n"
-                            "### 🎯 Section 2: NIET Level 5 Coaching Grows & Strategic Refinements\n"
-                            "- Provide actionable, direct coaching feedback on how to elevate this lesson from Level 3/4 to Level 5.\n"
-                            "- Address student inquiry, cognitive demand, and proactive misconception prevention.\n\n"
-                            "### 🗣️ Section 3: Verbatim Complex Instruction & Accountable Talk Script\n"
-                            "- Provide 2-3 specific Teacher Coaching Cues and Verbatim Classroom Scripts incorporating Accountable Talk moves (Revoicing, Reason-Checking, Adding On).\n\n"
-                            "### 📜 Section 4: Elevated POGIL Discovery Activity Mat\n"
-                            "- Present the visual Markdown discovery mat for student teams.\n"
-                            "- Include a standalone ```text ``` block with the complete elevated lesson material for easy copying.\n\n"
-                            "FORMATTING RULES:\n"
-                            "1. NO HTML TAGS: Do NOT use raw HTML tags (e.g., <br>, <div>).\n"
+                            "YOU MUST PROVIDE CONCRETE, SPECIFIC EXAMPLES THROUGHOUT ALL SECTIONS:\n\n"
+                            "### 🌟 Section 1: Authentic Affirming Glows (With Concrete Evidence)\n"
+                            "- Cite 2 specific strengths directly from the submitted lesson text/file.\n"
+                            "- Quote exact lines or cite specific math problems provided in the lesson.\n\n"
+                            "### 🎯 Section 2: NIET Level 5 Coaching Grows & Concrete Revisions\n"
+                            "- Provide 3 high-leverage coaching recommendations for elevating the lesson to Level 5.\n"
+                            "- MANDATORY: For EVERY grow point, provide a concrete 'BEFORE vs. AFTER' example:\n"
+                            "  * **Original Teacher Prompt / Task (Before):** [Show standard/procedural version]\n"
+                            "  * **Elevated Level 5 Version (After):** [Show higher-order, inquiry-based version]\n"
+                            "- Include explicit CRA visual model examples (e.g., algebra tiles, tape diagrams, double number lines).\n\n"
+                            "### ❓ Section 3: Targeted Clarification & Reflection Questions for the Teacher\n"
+                            "- Ask 3 specific, non-judgmental coaching questions to clarify teacher intent and room setup:\n"
+                            "  1. A question about student grouping / accountable talk roles.\n"
+                            "  2. A question about proactive intervention for struggling learners.\n"
+                            "  3. A question about pacing or checks for understanding.\n\n"
+                            "### 🗣️ Section 4: Verbatim Complex Instruction & Accountable Talk Script\n"
+                            "- Provide 2-3 specific Teacher Coaching Cues and Verbatim Classroom Scripts with exact mathematical phrasing.\n"
+                            "- Embed Accountable Talk moves: Revoicing, Reason-Checking, Adding On, and Wait Time.\n\n"
+                            "### 📜 Section 5: Elevated Student Discovery Mat (POGIL Activity)\n"
+                            "- Provide the complete elevated POGIL student activity mat in clean Markdown.\n"
+                            "- Include a standalone ```text ``` code block with the plain copy-paste version.\n\n"
+                            "FORMATTING DIRECTIVES:\n"
+                            "1. NO HTML TAGS: Do NOT use raw HTML tags.\n"
                             "2. NO MARKDOWN TABLES FOR COMPLEX MATH: Use bold section headers (####), bullet points, and blockquotes.\n"
                             "3. CURRENCY: Format money as 'USD $10' in prose, and equations in LaTeX ($3g + 10 < 40$).\n"
                         )
@@ -418,25 +428,50 @@ with tab_elevator:
                         )
                         st.markdown(response.text)
                     else:
-                        # Rich Offline Fallback Coaching Brief
+                        # Offline Fallback with Specific Examples & Clarification Questions
                         st.markdown(f"""
-                        ### 🌟 Section 1: Authentic Affirming Glows
-                        * **Clear Focus:** The lesson draft establishes a solid foundational objective aligned to **{selected_teks}**.
-                        * **Real-World Hook:** The context provides students with a recognizable starting scenario.
+                        ### 🌟 Section 1: Authentic Affirming Glows (With Concrete Evidence)
+                        * **Clear Focus:** The draft directly targets **{selected_teks}** by establishing a real-world financial context.
+                        * **Real-World Hook:** Using real-world monthly costs gives students a concrete entry point into abstract algebraic expressions.
+
+                        ---
+
+                        ### 🎯 Section 2: NIET Level 5 Coaching Grows & Concrete Revisions ({primary_indicator})
                         
-                        ### 🎯 Section 2: NIET Level 5 Coaching Grows ({primary_indicator})
-                        * **Elevate Inquiry & Student Ownership:** Shift teacher-led direct instruction into a student-led POGIL model where students discover the math rule before formal notation.
-                        * **Embed Cognitive Scaffolding:** Add visual CRA (Concrete-Representational-Abstract) models to prevent the common misconception of misinterpreting fixed vs variable rates.
-                        * **Differentiate Questioning:** Transition recall questions into open-ended justification prompts (e.g., *"How does changing the fixed fee alter our boundary limit?"*).
+                        #### 1. Transform Direct Explanation into Student Inquiry
+                        * **Original Teacher Prompt (Before):** *"Class, to solve $3x + 10 < 40$, first subtract 10 from both sides, then divide by 3."*
+                        * **Elevated Level 5 Version (After):** *"Looking at our tape diagram with $3$ equal variable blocks and a fixed USD $10$ block totaling under USD $40$, which part of the balance can we remove first without changing the relationship? Explain to your partner."*
 
-                        ### 🗣️ Section 3: Verbatim Accountable Talk Scripting
-                        * **Teacher Coaching Cue:** When students make an initial estimate, use *Revoicing* to enforce precise mathematical terminology.
-                        * **Verbatim Script:** *"I hear Alex saying that the $10 setup fee is added only once. Who can add on to why that fee isn't multiplied by the number of months?"*
+                        #### 2. Embed Visual CRA (Concrete-Representational-Abstract) Scaffolding
+                        * **Original Task (Before):** Solving pure symbolic inequalities on paper.
+                        * **Elevated Level 5 Version (After):** Use a **Visual Balance Scale Model**:
+                          > Draw a balance scale with $3x$ blocks and a $10$-unit weight on the left side, and a $40$-unit weight on the right side. Ask: *"What single move simplifies both sides of the balance simultaneously?"*
 
-                        ### 📜 Section 4: Elevated POGIL Discovery Activity
+                        #### 3. Shift Pacing to Student-Led Reasoning
+                        * **Original Question (Before):** *"What is $40 - 10$?"*
+                        * **Elevated Level 5 Version (After):** *"If we lower the budget ceiling from USD $40$ to USD $25$, how does that visually contract the boundary line on our number line model?"*
+
+                        ---
+
+                        ### ❓ Section 3: Targeted Clarification & Reflection Questions for the Teacher
+                        1. **On Grouping & Student Roles:** *"How are roles assigned within student pairs during the visual discovery phase (e.g., Modeler, Questioner, Recorder) to ensure 100% active participation?"*
+                        2. **On Addressing Prerequisite Gaps:** *"What visual cue or quick check will you use if students struggle to differentiate between the fixed fee ($10$) and variable rate ($3x$)?"*
+                        3. **On Lesson Pacing:** *"At what specific timestamp in the 45-minute block will you transition from the visual CRA tape diagram to the symbolic inequality notation?"*
+
+                        ---
+
+                        ### 🗣️ Section 4: Verbatim Complex Instruction & Accountable Talk Script
+                        * **Coaching Cue (Revoicing):**
+                          > **Teacher Script:** *"I hear Maya saying that the USD $10$ setup fee happens only once regardless of how many games are downloaded. Jordan, can you rephrase Maya's point in your own words?"*
+                        * **Coaching Cue (Reason-Checking & Wait Time):**
+                          > **Teacher Script:** *"Take 10 seconds of silent think time... Why does dividing by a negative coefficient reverse our inequality arrow on the number line?"*
+
+                        ---
+
+                        ### 📜 Section 5: Elevated Student Discovery Mat
                         #### 🟦 STUDENT INQUIRY MAT: {selected_teks}
-                        1. **Exploratory Model:** Examine the scenario and compare a flat fee vs. a monthly rate.
-                        2. **Group Critique:** Test values $x = 1, 2, 3$ to verify which side of the inequality remains true.
+                        1. **Concrete Exploration:** Build a tape diagram comparing fixed activation fees versus recurring costs.
+                        2. **Partner Defense:** Test boundary values ($x = -4, 0, 4$) to verify inequality truth statements.
                         """)
 
 # ------------------------------------------------------------------------------
