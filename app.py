@@ -232,4 +232,519 @@ TEKS_ALGEBRA_1 = [
     "A.7A - Graph Quadratic Functions & Identify Key Features",
     "A.7B - Linear Factors & Zeros of Quadratic Functions",
     "A.7C - Transformations on Parent Quadratic Function f(x) = x²",
-    "A.8A - Solve Quadratic Equations (Factoring, Square Roots
+    "A.8A - Solve Quadratic Equations (Factoring/Square Roots/Formula)",
+    "A.8B - Write & Solve Quadratic Equations in Real-World Contexts",
+    "A.9A - Domain & Range of Exponential Functions",
+    "A.9B - Interpret Parameters a & b in Exponential Functions",
+    "A.9C - Write Exponential Functions (Growth & Decay)",
+    "A.9D - Graph Exponential Functions & Identify Key Features",
+    "A.9E - Write Exponential Functions from Tables/Graphs",
+    "A.10A - Add & Subtract Polynomials",
+    "A.10B - Multiply Polynomials",
+    "A.10C - Quotient of Polynomials (Polynomial Division)",
+    "A.10D - Rewrite Polynomial Expressions",
+    "A.10E - Factor Trinomials (ax² + bx + c)",
+    "A.10F - Factor Difference of Squares",
+    "A.11A - Simplify Numerical Radical Expressions",
+    "A.11B - Simplify Algebraic Expressions (Laws of Exponents)",
+    "A.12A - Determine if a Relation is a Function",
+    "A.12B - Evaluate Function Notation f(x)",
+    "A.12C - Identify Terms of Arithmetic & Geometric Sequences",
+    "A.12D - Formulas for Arithmetic & Geometric Sequences",
+    "A.12E - Solve Formulas for a Specified Variable",
+    "Custom TEKS"
+]
+
+NIET_ALL_INDICATORS = [
+    "None",
+    "Standards and Objectives",
+    "Motivating Students",
+    "Presenting Instructional Content",
+    "Lesson Structure and Pacing",
+    "Activities and Materials",
+    "Questioning",
+    "Academic Feedback",
+    "Grouping Students",
+    "Teacher Content Knowledge",
+    "Teacher Knowledge of Students",
+    "Thinking",
+    "Problem Solving"
+]
+
+with st.sidebar:
+    st.image("https://img.icons8.com/color/96/calculator.png", width=64)
+    st.title("Coaching Settings")
+    
+    api_key = st.secrets.get("GEMINI_API_KEY", "")
+    if not api_key:
+        api_key = st.text_input("Enter Gemini API Key (Optional)", type="password")
+    
+    st.divider()
+    
+    selected_grade = st.radio(
+        "Select Target Course:",
+        ["7th Grade Math", "9th Grade Algebra 1"]
+    )
+    
+    teks_list = TEKS_7TH_MATH if selected_grade == "7th Grade Math" else TEKS_ALGEBRA_1
+    selected_teks = st.selectbox("Select TEKS Focus:", teks_list)
+    
+    if selected_teks == "Custom TEKS":
+        selected_teks = st.text_input("Enter Custom TEKS (e.g., 7.10B or A.12E):")
+
+    st.divider()
+    st.caption("🛡️ **FERPA Privacy Active:** In-memory PII sanitization enabled.")
+
+client = genai.Client(api_key=api_key) if api_key else None
+
+# ==============================================================================
+# 4. HEADER
+# ==============================================================================
+st.markdown(f"""
+<div class="main-header">
+    <h1 style="margin:0;">📐 NIET Math Coaching Intelligence Hub</h1>
+    <p style="margin:0; opacity:0.9;">Tailored for <b>{selected_grade}</b> • TEKS-Adaptive CRA + Complex Instruction + Accountable Talk Moves • STAAR 2.0 Dual Alignment</p>
+</div>
+""", unsafe_allow_html=True)
+
+# ==============================================================================
+# 5. MAIN TABS
+# ==============================================================================
+tab_elevator, tab_assess, tab_data, tab_cluster = st.tabs([
+    "✨ NIET Lesson Elevator",
+    "📝 Warmup & Exit Ticket Generator",
+    "📊 Eduphoria Data & Multimodal Misconceptions",
+    "👥 PLC Cluster & Reflective Inquiry Coach"
+])
+
+# ------------------------------------------------------------------------------
+# TAB 1: NIET LESSON ELEVATOR
+# ------------------------------------------------------------------------------
+with tab_elevator:
+    st.subheader("Elevate Lesson Draft or File Upload to NIET Level 5")
+    st.caption("Upload a PDF, Word Doc, Google Slides export (.pptx), Excel/Sheets (.xlsx), or TXT file. The AI analyzes uploaded content against selected NIET indicators, applying TEKS-adaptive CRA modeling, Complex Instruction dual-scripting, and full 5-move Accountable Talk rotations.")
+
+    col_e1, col_e2 = st.columns([1, 1])
+    
+    with col_e1:
+        primary_indicator = st.selectbox(
+            "Primary NIET Indicator Focus:",
+            [ind for ind in NIET_ALL_INDICATORS if ind != "None"],
+            index=5 # Questioning
+        )
+        
+        secondary_indicator = st.selectbox(
+            "Secondary NIET Indicator Focus (Optional):",
+            NIET_ALL_INDICATORS,
+            index=0
+        )
+        
+        uploaded_lesson_file = st.file_uploader(
+            "Upload Lesson File (PDF, Word, Google Slides/PPTX, Google Sheets/Excel, or TXT):",
+            type=["pdf", "docx", "doc", "pptx", "ppt", "xlsx", "xls", "csv", "txt"],
+            key="lesson_file_upload"
+        )
+        
+        lesson_text_input = st.text_area(
+            "Or paste lesson text / objective here:",
+            height=140,
+            placeholder=f"Example for {selected_grade}: Objective is to solve linear equations. Teacher presents 3 examples on board. Students work on a 10-question worksheet."
+        )
+
+        btn_elevate = st.button("🚀 Generate Level 5 POGIL Coaching Brief", type="primary", use_container_width=True)
+
+    with col_e2:
+        if btn_elevate:
+            if not lesson_text_input and not uploaded_lesson_file:
+                st.warning("⚠️ Please paste lesson text or upload a document to continue.")
+            else:
+                clean_text = sanitize_text_pii(lesson_text_input)
+                file_text_content = ""
+                pdf_part = None
+                
+                if uploaded_lesson_file:
+                    file_text_content, pdf_part = extract_content_from_file(uploaded_lesson_file)
+                    st.info(f"📄 Loaded '{uploaded_lesson_file.name}' successfully.")
+                
+                combined_lesson_content = f"{clean_text}\n\n{file_text_content}".strip()
+                
+                with st.spinner("Analyzing lesson through POGIL, Complex Instruction, and NIET Level 5 lenses..."):
+                    if client:
+                        prompt_contents = []
+                        if pdf_part:
+                            prompt_contents.append(pdf_part)
+                        
+                        secondary_clause = f"and Secondary Focus: '{secondary_indicator}'" if secondary_indicator != "None" else ""
+                        
+                        system_prompt = f"""
+                        You are a Master Junior High Math Instructional Coach specializing in NIET Rubric alignment, POGIL (Process-Oriented Guided Inquiry Learning), Complex Instruction, and Accountable Talk Moves for {selected_grade}.
+                        
+                        PRIMARY NIET INDICATOR: '{primary_indicator}' {secondary_clause}.
+                        TARGET TEKS: {selected_teks} ({selected_grade}).
+                        
+                        MANDATORY FORMATTING & PEDAGOGICAL DIRECTIVES:
+                        1. NO HTML TAGS: Do NOT use raw HTML tags (like <br>, <b>, <div>). Use clean Markdown headers and line breaks.
+                        2. NO MARKDOWN TABLES FOR COMPLEX MATH: Use clean bold headers (####), bullet points, and blockquotes (>).
+                        3. CURRENCY FORMATTING: Write money as 'USD $10' or '$10' in plain prose, but enclose mathematical equations cleanly in LaTeX like '$3g + 10 < 40$'.
+                        4. TEKS-ADAPTIVE CRA VISUAL MODELING: Dynamically select the optimal visual CRA tool for {selected_teks} (Algebra Tiles, Visual Balance Scales, Area Models, Coordinate Motion/Slope Triangles, or Tape Diagrams). Require students to sketch the model BEFORE symbolic writing.
+                        5. DUAL-SCRIPTING FOR COMPLEX INSTRUCTION ('Assigning Competence'): Provide both:
+                           - **Teacher Coaching Cue:** What the coach looks for during team observation.
+                           - **Verbatim Classroom Script:** Exact teacher words to publicly validate a low-status student's visual/conceptual contribution.
+                        6. FULL 5-MOVE ACCOUNTABLE TALK ROTATION: Embed Revoicing, Repeat/Restate, Agree/Disagree + Reason, Adding On, and 5-7 second Wait Time Cues.
+                        7. HYBRID ARTIFACT OUTPUT: Render a visual Markdown POGIL Discovery Mat, immediately followed by a clean, unformatted plain text copy block inside ```text ``` tags.
+                        """
+                        
+                        prompt_contents.append(f"{system_prompt}\n\nUploaded Lesson Input Content:\n{combined_lesson_content}")
+                        
+                        response = client.models.generate_content(
+                            model="gemini-1.5-pro",
+                            contents=prompt_contents
+                        )
+                        st.markdown(response.text)
+                    else:
+                        st.markdown(f"""
+                        <div class="glow-card">
+                            <h4>🌟 Authentic Affirming Glows</h4>
+                            <p>Wonderful foundation! Your draft for <b>{selected_teks}</b> establishes a clear mathematical learning target and structures dedicated practice time for students.</p>
+                        </div>
+                        """, unsafe_allow_html=True)
+                        
+                        st.markdown(f"### 🎯 NIET Level 5 Indicator Shift ({primary_indicator})")
+                        st.write(f"**NIET Exemplary Target for {primary_indicator}:** *'Tasks demand high-level thinking, require students to draw connections, and prompt metacognitive self-monitoring through structured group inquiry.'*")
+                        
+                        st.markdown("### 📍 Slide-by-Slide / Section-by-Section POGIL Annotations")
+                        st.info("**Slide 2 / Section 1 (Warmup):** Convert procedural formula display into POGIL Exploration. Show two contrasting mobile phone plans visually using tape diagrams.\n\n**Slide 5 / Section 2 (Guided Practice):** Replace teacher lecture with POGIL Roles. Assign *Manager* to time-box exploration and *Recorder* to draw visual balance scales.")
+
+                        st.markdown("### 💬 Level 3 vs Level 5 Classroom Dialogue Script (5 Talk Moves)")
+                        col_l3, col_l5 = st.columns(2)
+                        with col_l3:
+                            st.info("**LEVEL 3 (Procedural)**\n\n**Teacher:** 'What is step 1 to solve $2x + 5 = 15$?'\n\n**Student:** 'Subtract 5 from both sides.'\n\n**Teacher:** 'Correct, write that down.'")
+                        with col_l5:
+                            st.success("**LEVEL 5 (POGIL + 5-Move Talk Rotation)**\n\n**Teacher (Wait Time 5-7s):** '...' *(Pauses 6s)*\n\n**Teacher (Revoicing):** 'Spokesperson from Team 3, revoice what the Reflector noticed about testing $x=5$ on your visual balance mat.'\n\n**Spokesperson:** 'Our team agrees that removing 5 unit tiles keeps both scales equal.'\n\n**Teacher (Assigning Competence):** 'Notice how Alex's balance drawing made it obvious why we subtract 5 first! Team 4, who can **add on** or **agree/disagree with proof** to Alex's model?'")
+
+                        st.markdown("""
+                        ### 🎨 Visual On-Screen POGIL Discovery Mat
+                        <div class="artifact-card">
+                            <h3 style="margin-top:0;">📋 POGIL Student Discovery Mat: {selected_teks}</h3>
+                            <p><span class="role-badge">Manager</span> Pacing & Turn-Taking &nbsp;|&nbsp; 
+                               <span class="role-badge">Recorder</span> Visual Balance Model &nbsp;|&nbsp; 
+                               <span class="role-badge">Spokesperson</span> Class Share &nbsp;|&nbsp; 
+                               <span class="role-badge">Reflector</span> Talk Moves Check</p>
+                            <hr>
+                            <h4>Phase 1: Exploration (TEKS-Adaptive CRA)</h4>
+                            <p>Sketch a Visual Balance Scale for $2x + 5 = 15$ before writing symbolic steps. What action maintains scale balance?</p>
+                            <h4>Phase 2: Concept Invention</h4>
+                            <p><b>Team Consensus Stem:</b> <i>"Our team derived the rule that operating on an equation maintains equality because..."</i></p>
+                            <h4>Phase 3: Application & Accountable Talk Move</h4>
+                            <p><b>Talk Move Prompt:</b> <i>"I want to add on to [Name]'s idea because testing $x=5$ proves..."</i></p>
+                        </div>
+                        """, unsafe_allow_html=True)
+
+                        st.markdown("### 📋 Copyable Plain-Text Version (For Google Docs / Word)")
+                        st.code(f"""================================================================================
+POGIL STUDENT DISCOVERY MAT: {selected_teks}
+================================================================================
+
+TEAM ROLES:
+- MANAGER: Tracks time limits and ensures equal participation across all members.
+- RECORDER: Draws the team visual balance model and records written consensus.
+- SPOKESPERSON: Shares out team reasoning during whole-class discussion.
+- REFLECTOR: Monitors use of Accountable Talk Stems within the group.
+
+PHASE 1: EXPLORATION (TEKS-Adaptive CRA Visual Sketch)
+Sketch Balance Scale A (2x + 5 = 15) and Scale B (2x = 10).
+Question: What specific action was taken on Scale A to create Scale B?
+
+PHASE 2: CONCEPT INVENTION (Derived Rule)
+Sentence Stem: "Our team derived the rule that subtracting equal quantities from both sides maintains scale balance because..."
+
+PHASE 3: APPLICATION & ACCOUNTABLE TALK
+Talk Move Prompt: "I want to add on to [Name]'s idea because testing x = 5 proves..."
+===============================================================================""", language="text")
+
+# ------------------------------------------------------------------------------
+# TAB 2: WARMUP & EXIT TICKET GENERATOR
+# ------------------------------------------------------------------------------
+with tab_assess:
+    st.subheader("Targeted Assessment & Misconception Generator")
+    st.caption("Upload a lesson plan, worksheet, slide deck, or assessment file (PDF, Word, Slides/PPTX, Excel, or TXT) to identify embedded misconceptions and generate 4-option multiple-choice warmups, exit tickets, and Eduphoria keys.")
+
+    col_a1, col_a2 = st.columns([1, 1])
+    with col_a1:
+        uploaded_assess_file = st.file_uploader(
+            "Upload Lesson File / Worksheet (PDF, Word, Google Slides/PPTX, Excel, TXT):",
+            type=["pdf", "docx", "doc", "pptx", "ppt", "xlsx", "xls", "csv", "txt"],
+            key="assess_file_upload"
+        )
+        
+        misconception_input = st.text_input(
+            "Or manually enter / override Target Misconception:",
+            value="",
+            placeholder="e.g., Confusing constant base fees with variable rates in mobile data plans"
+        )
+        
+        btn_gen_assess = st.button("⚡ Extract Misconception & Build Assessment Slips", type="primary", use_container_width=True)
+
+    with col_a2:
+        if btn_gen_assess:
+            if not uploaded_assess_file and not misconception_input.strip():
+                st.warning("⚠️ Please upload a lesson file or enter a misconception to continue.")
+            else:
+                clean_text = sanitize_text_pii(misconception_input)
+                file_text_content = ""
+                pdf_part = None
+                
+                if uploaded_assess_file:
+                    file_text_content, pdf_part = extract_content_from_file(uploaded_assess_file)
+                    st.info(f"📄 Loaded '{uploaded_assess_file.name}' for misconception analysis.")
+                
+                combined_assess_input = f"Manual Input: {clean_text}\n\nUploaded Content:\n{file_text_content}".strip()
+                
+                with st.spinner("Analyzing lesson content to extract misconceptions and build 4-option STAAR assessment slips..."):
+                    if client:
+                        prompt_contents = []
+                        if pdf_part:
+                            prompt_contents.append(pdf_part)
+                        
+                        system_prompt = f"""
+                        You are a STAAR 2.0 Assessment Specialist and Math Instructional Coach for {selected_grade}.
+                        
+                        TASK:
+                        1. Analyze the provided lesson content/file or manual misconception for TEKS {selected_teks}.
+                        2. Identify the PRIMARY MATHEMATICAL MISCONCEPTION / STUMBLING BLOCK embedded in the lesson or concept. State this explicitly at the top under a '🔴 Extracted Primary Misconception' heading.
+                        3. Generate a 5-minute Entrance Warmup and Exit Slip specifically addressing this misconception.
+                        
+                        MANDATORY 4-OPTION MULTIPLE CHOICE RULE FOR BOTH WARMUP & EXIT SLIP:
+                        Every item MUST feature exactly 4 Multiple-Choice options (Option A, Option B, Option C, Option D) structured as follows:
+                        - **1 Correct Answer**
+                        - **2 Procedural / Conceptual Distractors** (representing common STAAR calculation/conceptual errors)
+                        - **1 Instant-Elimination Distractor:** MUST be removable with almost ZERO computation, purely using **vocabulary** (e.g., wrong operation keyword, incorrect inequality sign direction, negative sign error) or **estimation** (e.g., magnitude is obviously too big or too small / mathematically impossible).
+                        
+                        STRICT FORMATTING RULES (FOR TEACHER READABILITY):
+                        1. NO HTML TAGS: Banned raw HTML (no <br>, <b>, <div>). Use clean Markdown section headers (####) and standard line breaks.
+                        2. NO MARKDOWN TABLES FOR QUESTION ITEMS: Present student items using clear bold section boxes and bullet points.
+                        3. CURRENCY VS MATH: Write currency explicitly as 'USD $10' or '$10' in prose text, but enclose algebraic formulas cleanly inside LaTeX like '$3g + 10 < 40$'.
+                        
+                        OUTPUT STRUCTURE REQUIRED:
+                        ### 🔴 Extracted Primary Misconception
+                        [1-2 sentence sharp explanation of the core cognitive error]
+                        
+                        ### 📝 Entrance Warmup (4 Multiple Choice Options)
+                        #### 🟦 STUDENT-FACING QUESTION
+                        **Context:** [Real-world teen scenario]
+                        **Task:** [Question prompt]
+                        * [ ] **Option A:** [Option text/math]
+                        * [ ] **Option B:** [Option text/math]
+                        * [ ] **Option C:** [Option text/math]
+                        * [ ] **Option D:** [Option text/math]
+                        
+                        #### 🟩 METACOGNITIVE DEFENSE & DISTRACTOR CRITIQUE
+                        1. **Instant Elimination Task:** Identify which option can be eliminated immediately without heavy calculation based on vocabulary or estimation (too big / too small).
+                        * **Sentence Stem:** *"Option [X] can be eliminated immediately because vocabulary/estimation shows..."*
+                        2. **Visual CRA / Defense Task:** [Task requiring student to draw/model and defend the correct choice]
+                        
+                        ### 🚪 Exit Slip (4 Multiple Choice Options)
+                        #### 🟦 STUDENT-FACING QUESTION
+                        **Context:** [Real-world teen scenario]
+                        **Task:** [Question prompt]
+                        * [ ] **Option A:** [Option text/math]
+                        * [ ] **Option B:** [Option text/math]
+                        * [ ] **Option C:** [Option text/math]
+                        * [ ] **Option D:** [Option text/math]
+                        
+                        #### 🟩 METACOGNITIVE DEFENSE & DISTRACTOR CRITIQUE
+                        1. **Instant Elimination Task:** Identify which option can be eliminated immediately based on vocabulary or estimation.
+                        * **Sentence Stem:** *"Option [X] is unreasonable because..."*
+                        
+                        ### ⚠️ Eduphoria Distractor Analysis Key
+                        * **Correct Answer:** [Explanation]
+                        * **Distractor 1 (Procedural):** [Cognitive error]
+                        * **Distractor 2 (Procedural):** [Cognitive error]
+                        * **Distractor 3 (Instant Elimination):** [Explicitly explain why this option can be eliminated instantly via vocabulary or estimation (too big/small)]
+                        """
+                        
+                        prompt_contents.append(f"{system_prompt}\n\nInput Content:\n{combined_assess_input}")
+                        
+                        response = client.models.generate_content(
+                            model="gemini-1.5-pro",
+                            contents=prompt_contents
+                        )
+                        st.markdown(response.text)
+                    else:
+                        st.subheader(f"Generated Assessment Slips: {selected_teks}")
+                        st.markdown("""
+                        ### 🔴 Extracted Primary Misconception
+                        * **Identified Gap:** Students attach variable rates to one-time flat setup fees when writing linear equations or inequalities from verbal real-world scenarios.
+                        
+                        ---
+
+                        ### 📝 Entrance Warmup (4 Multiple Choice Options)
+                        
+                        #### 🟦 STUDENT-FACING QUESTION
+                        **Context:** Jordan is choosing a gaming pass. Plan X charges a **USD $10** flat setup fee plus **USD $3** per game downloaded.
+                        
+                        **Task:** Select the correct inequality to model keeping total monthly costs under USD $40:
+                        * [ ] **Option A:** $3g + 10 < 40$
+                        * [ ] **Option B:** $10g + 3 < 40$
+                        * [ ] **Option C:** $3g + 10 > 40$
+                        * [ ] **Option D:** $3g + 10 < 4$
+
+                        #### 🟩 METACOGNITIVE DEFENSE & DISTRACTOR CRITIQUE
+                        1. **Instant Elimination Task:** Identify which option can be eliminated immediately without heavy calculation based on vocabulary or estimation.
+                        * **Sentence Stem:** *"Option D can be eliminated immediately because a budget limit of $4 is far too small compared to the $10 setup fee..."*
+                        2. **Visual CRA Task:** Sketch a visual tape diagram or balance scale showing Plan X on your paper before defending Option A.
+
+                        ---
+
+                        ### 🚪 Exit Slip (4 Multiple Choice Options)
+                        
+                        #### 🟦 STUDENT-FACING QUESTION
+                        **Context:** Solve $-3x + 4 > 16$ in the context of cloud storage limits.
+                        
+                        **Task:** Select the correct boundary solution:
+                        * [ ] **Option A:** $x < -4$
+                        * [ ] **Option B:** $x > -4$
+                        * [ ] **Option C:** $x < 4$
+                        * [ ] **Option D:** $x < 400$
+
+                        #### 🟩 METACOGNITIVE DEFENSE & DISTRACTOR CRITIQUE
+                        1. **Instant Elimination Task:** Identify which option is unreasonable based on magnitude estimation.
+                        * **Sentence Stem:** *"Option D can be eliminated immediately because 400 gigabytes is far too large..."*
+                        
+                        ---
+
+                        ### ⚠️ Eduphoria Distractor Analysis Key
+                        * **Option A (Correct Answer):** $3g + 10 < 40$ ($x < -4$)
+                        * **Option B (Procedural Distractor):** Swapped fixed setup fee with variable rate per game ($10g + 3 < 40$) / Forgot sign reversal ($x > -4$).
+                        * **Option C (Procedural / Vocabulary Distractor):** Flipped inequality direction sign ($3g + 10 > 40$) / Sign error ($x < 4$).
+                        * **Option D (Instant Elimination Distractor):** Magnitudes of 4 and 400 are obviously too small / too big based on basic estimation without calculation.
+                        """)
+
+# ------------------------------------------------------------------------------
+# TAB 3: EDUPHORIA DATA & MULTIMODAL MISCONCEPTION COACH
+# ------------------------------------------------------------------------------
+with tab_data:
+    st.subheader("Eduphoria Student Responses & Test File Analysis")
+    st.caption("Upload your Eduphoria student item response CSV along with the Test file (PDF, Word, or Slides/PPTX). The AI cross-references distractor patterns with actual test questions to pinpoint misconceptions and structure exploratory reteach strategies.")
+
+    st.info("🛡️ **FERPA Privacy Shield Active:** Uploaded student files are automatically anonymized in RAM (removing Student Names, Local IDs, and Teacher Names) before processing.")
+
+    col_u1, col_u2 = st.columns(2)
+    with col_u1:
+        uploaded_csv = st.file_uploader("1. Upload Eduphoria Student Item Responses (.csv):", type=["csv"], key="eduphoria_csv")
+    with col_u2:
+        uploaded_pdf = st.file_uploader("2. Upload Assessment File (PDF, Word, or Slides/PPTX):", type=["pdf", "docx", "pptx", "txt"], key="test_pdf")
+
+    btn_analyze_test = st.button("🔍 Analyze Test & Identify Top 4 Misconceptions", type="primary", use_container_width=True)
+
+    if btn_analyze_test:
+        if not uploaded_csv or not uploaded_pdf:
+            st.warning("⚠️ Please upload BOTH the Eduphoria student response CSV and the Assessment file to run the analysis.")
+        else:
+            try:
+                raw_df = pd.read_csv(uploaded_csv)
+                sanitized_df, dropped_pii = sanitize_eduphoria_dataframe(raw_df)
+                csv_summary_str = sanitized_df.to_csv(index=False)
+                
+                test_file_text, pdf_part = extract_content_from_file(uploaded_pdf)
+                
+                st.success(f"🔒 FERPA Scrub Complete! Anonymized student data and loaded '{uploaded_pdf.name}'. Analyzing test items...")
+
+                if client:
+                    with st.spinner("Cross-referencing test questions with distractor choices to identify top 4 misconceptions..."):
+                        system_prompt = f"""
+                        You are a Master Junior High Math Instructional Coach and STAAR Assessment Specialist for {selected_grade}.
+                        
+                        TASK:
+                        Analyze the attached Assessment file and the anonymized Eduphoria Student Response data ({selected_teks}).
+                        Identify the TOP 4 MOST CRITICAL COMMON MISCONCEPTIONS across student responses.
+                        
+                        OUTPUT REQUIREMENTS FOR EACH OF THE 4 MISCONCEPTIONS:
+                        
+                        ### 🔴 Misconception #[Number]: [Short Descriptive Name]
+                        * **Target Item & TEKS:** Identify specific question number(s), key TEKS, and distractor choice pattern (e.g., Question #5, Choice C - 42% of students).
+                        * **1-2 Sentence Explanation:** A concise, sharp explanation of the exact cognitive flaw or misapplied logic leading to this error.
+                        * **Exploratory Addressing Strategy (60% Inquiry / CRA Focus):** Provide coaching feedback on how the teacher can address this misconception in an **exploratory/discovery way** (e.g., 4-person POGIL inquiry prompt, TEKS-adaptive visual CRA model like balance scales or algebra tiles, or an error-critique stem) rather than teaching procedural steps.
+                        
+                        End with a brief coaching summary highlighting how correcting these 4 key gaps will elevate Domain 1 STAAR performance.
+                        """
+                        
+                        prompt_contents = []
+                        if pdf_part:
+                            prompt_contents.append(pdf_part)
+                        
+                        prompt_contents.append(f"{system_prompt}\n\nTest Content:\n{test_file_text}\n\nStudent Item Response Data:\n{csv_summary_str}")
+                        
+                        response = client.models.generate_content(
+                            model="gemini-1.5-pro",
+                            contents=prompt_contents
+                        )
+                        st.markdown(response.text)
+                else:
+                    st.markdown("### 📊 Sample Preview (Add Gemini API Key to run live file analysis)")
+                    st.markdown(f"""
+                    ### 🔴 Misconception #1: Confusing Constant Base Fees with Variable Rates
+                    * **Target Item & TEKS:** Question #4 | TEKS {selected_teks} | Distractor C chosen by 48% of students.
+                    * **1-2 Sentence Explanation:** Students attached the variable rate to the one-time subscription setup fee instead of multiplying it by recurring data usage. This stems from reading key terms in isolation rather than analyzing rate of change.
+                    * **Exploratory Addressing Strategy:**  
+                      * **Visual CRA Activity:** Have 4-person POGIL teams build a Visual Balance Board comparing 1 month vs 3 months of usage.  
+                      * **Inquiry Prompt Stem:** *"Team Member 2, test $x=0$ on Choice C. Does paying $0 in usage still cost $0 total under this plan? Why or why not?"*
+                    """)
+            except Exception as e:
+                st.error(f"Error processing files: {e}")
+
+# ------------------------------------------------------------------------------
+# TAB 4: PLC CLUSTER & REFLECTIVE INQUIRY COACH
+# ------------------------------------------------------------------------------
+with tab_cluster:
+    st.subheader("1-on-1 Coaching Debrief & Reflective Inquiry Coach")
+    st.caption("Structures post-observation conferences using the Reflective Inquiry Protocol—guiding the coach with open-ended prompts so the teacher self-discovers instructional gaps.")
+
+    col_c1, col_c2 = st.columns([1, 1])
+    with col_c1:
+        observation_notes = st.text_area(
+            "Paste Observation Notes or Growth Goal:",
+            height=160,
+            value=f"Teacher led a guided lesson on {selected_teks}. Teacher asked procedural questions ('What is step 1?'). Students worked silently on worksheets with minimal discourse."
+        )
+        btn_cluster = st.button("📋 Generate Reflective Inquiry Debrief Guide", type="primary", use_container_width=True)
+
+    with col_c2:
+        if btn_cluster:
+            clean_notes = sanitize_text_pii(observation_notes)
+            if client:
+                system_prompt = f"""
+                You are a Master Instructional Coach guiding a 1-on-1 post-observation teacher conference.
+                
+                DEBRIEF PROTOCOL: REFLECTIVE INQUIRY (NON-DIRECTIVE DISCOVERY)
+                1. AFFIRMATION: Open with sincere, authentic praise for teacher preparation and classroom climate.
+                2. GUIDED REFLECTION (SEE IT): Provide 2-3 open-ended inquiry questions guiding the teacher to notice the gap between current student discourse and NIET Level 5 Exemplary questioning/thinking.
+                3. CO-CONSTRUCTED ACTION STEP (NAME IT): Formulate open-ended prompts for the coach to help the teacher name their own bite-sized action step (e.g., embedding POGIL 4-person team sentence stems or DOK-3 error critiques).
+                4. PRACTICE & COMMITMENT (DO IT): Guide the coach on co-scripting a 2-minute roll-out prompt for tomorrow's class.
+                """
+                response = client.models.generate_content(
+                    model="gemini-1.5-pro",
+                    contents=f"{system_prompt}\n\nObservation Notes:\n{clean_notes}"
+                )
+                st.markdown(response.text)
+            else:
+                st.markdown("""
+                <div class="glow-card">
+                    <h4>🌟 Affirming Opening</h4>
+                    <p><i>"Thank you for welcoming me into your classroom! Your lesson pacing was smooth, and your clear board work gave students a solid visual anchor."</i></p>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                st.markdown("""
+                ### ❓ Reflective Inquiry Script for Coach
+                
+                **1. See It (Guiding Discovery):**
+                * *"When you look at student responses during guided practice, how would you describe the balance between procedural recall vs. students defending their reasoning?"*
+                * *"How might providing a 4-person POGIL structure with Accountable Talk stems change who is doing the heavy lifting during problem-solving?"*
+                
+                **2. Name It (Teacher-Discovered Action Step):**
+                * *"Looking at the NIET Rubric for Thinking and Problem Solving, what is one shift we could make in tomorrow's warmup to give students ownership of error critique?"*
+                
+                **3. Do It (Co-Scripting Practice):**
+                * *"Let's take 2 minutes right now to co-script tomorrow's POGIL sentence stem for your mobile phone data plan problem!"*
+                """)
