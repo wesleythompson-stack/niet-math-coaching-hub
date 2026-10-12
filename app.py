@@ -229,3 +229,282 @@ TEKS_ALGEBRA_1 = [
     "A.6A - Domain & Range of Quadratic Functions",
     "A.6B - Write Quadratic Functions (Vertex & Point)",
     "A.6C - Write Quadratic Functions in Vertex & Standard Form",
+    "A.7A - Graph Quadratic Functions & Identify Key Features",
+    "A.7B - Linear Factors & Zeros of Quadratic Functions",
+    "A.7C - Transformations on Parent Quadratic Function f(x) = x²",
+    "A.8A - Solve Quadratic Equations (Factoring/Square Roots/Formula)",
+    "A.8B - Write & Solve Quadratic Equations in Real-World Contexts",
+    "A.9A - Domain & Range of Exponential Functions",
+    "A.9B - Interpret Parameters a & b in Exponential Functions",
+    "A.9C - Write Exponential Functions (Growth & Decay)",
+    "A.9D - Graph Exponential Functions & Identify Key Features",
+    "A.9E - Write Exponential Functions from Tables/Graphs",
+    "A.10A - Add & Subtract Polynomials",
+    "A.10B - Multiply Polynomials",
+    "A.10C - Quotient of Polynomials (Polynomial Division)",
+    "A.10D - Rewrite Polynomial Expressions",
+    "A.10E - Factor Trinomials (ax² + bx + c)",
+    "A.10F - Factor Difference of Squares",
+    "A.11A - Simplify Numerical Radical Expressions",
+    "A.11B - Simplify Algebraic Expressions (Laws of Exponents)",
+    "A.12A - Determine if a Relation is a Function",
+    "A.12B - Evaluate Function Notation f(x)",
+    "A.12C - Identify Terms of Arithmetic & Geometric Sequences",
+    "A.12D - Formulas for Arithmetic & Geometric Sequences",
+    "A.12E - Solve Formulas for a Specified Variable",
+    "Custom TEKS"
+]
+
+NIET_ALL_INDICATORS = [
+    "None",
+    "Standards and Objectives",
+    "Motivating Students",
+    "Presenting Instructional Content",
+    "Lesson Structure and Pacing",
+    "Activities and Materials",
+    "Questioning",
+    "Academic Feedback",
+    "Grouping Students",
+    "Teacher Content Knowledge",
+    "Teacher Knowledge of Students",
+    "Thinking",
+    "Problem Solving"
+]
+
+with st.sidebar:
+    st.image("https://img.icons8.com/color/96/calculator.png", width=64)
+    st.title("Coaching Settings")
+    
+    api_key = st.secrets.get("GEMINI_API_KEY", "")
+    if not api_key:
+        api_key = st.text_input("Enter Gemini API Key (Optional)", type="password")
+    
+    st.divider()
+    
+    selected_grade = st.radio(
+        "Select Target Course:",
+        ["7th Grade Math", "9th Grade Algebra 1"]
+    )
+    
+    teks_list = TEKS_7TH_MATH if selected_grade == "7th Grade Math" else TEKS_ALGEBRA_1
+    selected_teks = st.selectbox("Select TEKS Focus:", teks_list)
+    
+    if selected_teks == "Custom TEKS":
+        selected_teks = st.text_input("Enter Custom TEKS (e.g., 7.10B or A.12E):")
+
+    st.divider()
+    st.caption("🛡️ **FERPA Privacy Active:** In-memory PII sanitization enabled.")
+
+client = genai.Client(api_key=api_key) if api_key else None
+
+# ==============================================================================
+# 4. HEADER
+# ==============================================================================
+st.markdown(f"""
+<div class="main-header">
+    <h1 style="margin:0;">📐 NIET Math Coaching Intelligence Hub</h1>
+    <p style="margin:0; opacity:0.9;">Tailored for <b>{selected_grade}</b> • TEKS-Adaptive CRA + Complex Instruction + Accountable Talk Moves • STAAR 2.0 Dual Alignment</p>
+</div>
+""", unsafe_allow_html=True)
+
+# ==============================================================================
+# 5. MAIN TABS
+# ==============================================================================
+tab_elevator, tab_assess, tab_data, tab_cluster = st.tabs([
+    "✨ NIET Lesson Elevator",
+    "📝 Warmup & Exit Ticket Generator",
+    "📊 Eduphoria Data & Multimodal Misconceptions",
+    "👥 PLC Cluster & Reflective Inquiry Coach"
+])
+
+# ------------------------------------------------------------------------------
+# TAB 1: NIET LESSON ELEVATOR
+# ------------------------------------------------------------------------------
+with tab_elevator:
+    st.subheader("Elevate Lesson Draft or File Upload to NIET Level 5")
+    st.caption("Upload a PDF, Word Doc, Google Slides export (.pptx), Excel/Sheets (.xlsx), or TXT file. The AI analyzes uploaded content against selected NIET indicators, applying TEKS-adaptive CRA modeling, Complex Instruction dual-scripting, and full 5-move Accountable Talk rotations.")
+
+    col_e1, col_e2 = st.columns([1, 1])
+    
+    with col_e1:
+        primary_indicator = st.selectbox(
+            "Primary NIET Indicator Focus:",
+            [ind for ind in NIET_ALL_INDICATORS if ind != "None"],
+            index=5 # Questioning
+        )
+        
+        secondary_indicator = st.selectbox(
+            "Secondary NIET Indicator Focus (Optional):",
+            NIET_ALL_INDICATORS,
+            index=0
+        )
+        
+        uploaded_lesson_file = st.file_uploader(
+            "Upload Lesson File (PDF, Word, Google Slides/PPTX, Google Sheets/Excel, or TXT):",
+            type=["pdf", "docx", "doc", "pptx", "ppt", "xlsx", "xls", "csv", "txt"],
+            key="lesson_file_upload"
+        )
+        
+        lesson_text_input = st.text_area(
+            "Or paste lesson text / objective here:",
+            height=140,
+            placeholder=f"Example for {selected_grade}: Objective is to solve linear equations. Teacher presents 3 examples on board. Students work on a 10-question worksheet."
+        )
+
+        btn_elevate = st.button("🚀 Generate Level 5 POGIL Coaching Brief", type="primary", use_container_width=True)
+
+    with col_e2:
+        if btn_elevate:
+            if not lesson_text_input and not uploaded_lesson_file:
+                st.warning("⚠️ Please paste lesson text or upload a document to continue.")
+            else:
+                clean_text = sanitize_text_pii(lesson_text_input)
+                file_text_content = ""
+                pdf_part = None
+                
+                if uploaded_lesson_file:
+                    file_text_content, pdf_part = extract_content_from_file(uploaded_lesson_file)
+                    st.info(f"📄 Loaded '{uploaded_lesson_file.name}' successfully.")
+                
+                combined_lesson_content = f"{clean_text}\n\n{file_text_content}".strip()
+                
+                with st.spinner("Analyzing lesson through POGIL, Complex Instruction, and NIET Level 5 lenses..."):
+                    if client:
+                        prompt_contents = []
+                        if pdf_part:
+                            prompt_contents.append(pdf_part)
+                        
+                        secondary_clause = f"and Secondary Focus: '{secondary_indicator}'" if secondary_indicator != "None" else ""
+                        
+                        system_prompt = f"""
+                        You are a Master Junior High Math Instructional Coach specializing in NIET Rubric alignment, POGIL (Process-Oriented Guided Inquiry Learning), Complex Instruction, and Accountable Talk Moves for {selected_grade}.
+                        
+                        PRIMARY NIET INDICATOR: '{primary_indicator}' {secondary_clause}.
+                        TARGET TEKS: {selected_teks} ({selected_grade}).
+                        
+                        MANDATORY FORMATTING & PEDAGOGICAL DIRECTIVES:
+                        1. NO HTML TAGS: Do NOT use raw HTML tags (like <br>, <b>, <div>). Use clean Markdown headers and line breaks.
+                        2. NO MARKDOWN TABLES FOR COMPLEX MATH: Use clean bold headers (####), bullet points, and blockquotes (>).
+                        3. CURRENCY FORMATTING: Write money as 'USD $10' or '$10' in plain prose, but enclose mathematical equations cleanly in LaTeX like '$3g + 10 < 40$'.
+                        4. TEKS-ADAPTIVE CRA VISUAL MODELING: Dynamically select the optimal visual CRA tool for {selected_teks} (Algebra Tiles, Visual Balance Scales, Area Models, Coordinate Motion/Slope Triangles, or Tape Diagrams). Require students to sketch the model BEFORE symbolic writing.
+                        5. DUAL-SCRIPTING FOR COMPLEX INSTRUCTION ('Assigning Competence'): Provide both:
+                           - **Teacher Coaching Cue:** What the coach looks for during team observation.
+                           - **Verbatim Classroom Script:** Exact teacher words to publicly validate a low-status student's visual/conceptual contribution.
+                        6. FULL 5-MOVE ACCOUNTABLE TALK ROTATION: Embed Revoicing, Repeat/Restate, Agree/Disagree + Reason, Adding On, and 5-7 second Wait Time Cues.
+                        7. HYBRID ARTIFACT OUTPUT: Render a visual Markdown POGIL Discovery Mat, immediately followed by a clean, unformatted plain text copy block inside ```text ``` tags.
+                        """
+                        
+                        prompt_contents.append(f"{system_prompt}\n\nUploaded Lesson Input Content:\n{combined_lesson_content}")
+                        
+                        response = client.models.generate_content(
+                            model="gemini-1.5-pro",
+                            contents=prompt_contents
+                        )
+                        st.markdown(response.text)
+                    else:
+                        st.markdown(f"""
+                        <div class="glow-card">
+                            <h4>🌟 Authentic Affirming Glows</h4>
+                            <p>Wonderful foundation! Your draft for <b>{selected_teks}</b> establishes a clear mathematical learning target and structures dedicated practice time for students.</p>
+                        </div>
+                        """, unsafe_allow_html=True)
+                        
+                        st.markdown(f"### 🎯 NIET Level 5 Indicator Shift ({primary_indicator})")
+                        st.write(f"**NIET Exemplary Target for {primary_indicator}:** *'Tasks demand high-level thinking, require students to draw connections, and prompt metacognitive self-monitoring through structured group inquiry.'*")
+                        
+                        st.markdown("### 📍 Slide-by-Slide / Section-by-Section POGIL Annotations")
+                        st.info("**Slide 2 / Section 1 (Warmup):** Convert procedural formula display into POGIL Exploration. Show two contrasting mobile phone plans visually using tape diagrams.\n\n**Slide 5 / Section 2 (Guided Practice):** Replace teacher lecture with POGIL Roles. Assign *Manager* to time-box exploration and *Recorder* to draw visual balance scales.")
+
+                        st.markdown("### 💬 Level 3 vs Level 5 Classroom Dialogue Script (5 Talk Moves)")
+                        col_l3, col_l5 = st.columns(2)
+                        with col_l3:
+                            st.info("**LEVEL 3 (Procedural)**\n\n**Teacher:** 'What is step 1 to solve $2x + 5 = 15$?'\n\n**Student:** 'Subtract 5 from both sides.'\n\n**Teacher:** 'Correct, write that down.'")
+                        with col_l5:
+                            st.success("**LEVEL 5 (POGIL + 5-Move Talk Rotation)**\n\n**Teacher (Wait Time 5-7s):** '...' *(Pauses 6s)*\n\n**Teacher (Revoicing):** 'Spokesperson from Team 3, revoice what the Reflector noticed about testing $x=5$ on your visual balance mat.'\n\n**Spokesperson:** 'Our team agrees that removing 5 unit tiles keeps both scales equal.'\n\n**Teacher (Assigning Competence):** 'Notice how Alex's balance drawing made it obvious why we subtract 5 first! Team 4, who can **add on** or **agree/disagree with proof** to Alex's model?'")
+
+                        st.markdown("""
+                        ### 🎨 Visual On-Screen POGIL Discovery Mat
+                        <div class="artifact-card">
+                            <h3 style="margin-top:0;">📋 POGIL Student Discovery Mat: {selected_teks}</h3>
+                            <p><span class="role-badge">Manager</span> Pacing & Turn-Taking &nbsp;|&nbsp; 
+                               <span class="role-badge">Recorder</span> Visual Balance Model &nbsp;|&nbsp; 
+                               <span class="role-badge">Spokesperson</span> Class Share &nbsp;|&nbsp; 
+                               <span class="role-badge">Reflector</span> Talk Moves Check</p>
+                            <hr>
+                            <h4>Phase 1: Exploration (TEKS-Adaptive CRA)</h4>
+                            <p>Sketch a Visual Balance Scale for $2x + 5 = 15$ before writing symbolic steps. What action maintains scale balance?</p>
+                            <h4>Phase 2: Concept Invention</h4>
+                            <p><b>Team Consensus Stem:</b> <i>"Our team derived the rule that operating on an equation maintains equality because..."</i></p>
+                            <h4>Phase 3: Application & Accountable Talk Move</h4>
+                            <p><b>Talk Move Prompt:</b> <i>"I want to add on to [Name]'s idea because testing $x=5$ proves..."</i></p>
+                        </div>
+                        """, unsafe_allow_html=True)
+
+                        st.markdown("### 📋 Copyable Plain-Text Version (For Google Docs / Word)")
+                        st.code(f"""================================================================================
+POGIL STUDENT DISCOVERY MAT: {selected_teks}
+================================================================================
+
+TEAM ROLES:
+- MANAGER: Tracks time limits and ensures equal participation across all members.
+- RECORDER: Draws the team visual balance model and records written consensus.
+- SPOKESPERSON: Shares out team reasoning during whole-class discussion.
+- REFLECTOR: Monitors use of Accountable Talk Stems within the group.
+
+PHASE 1: EXPLORATION (TEKS-Adaptive CRA Visual Sketch)
+Sketch Balance Scale A (2x + 5 = 15) and Scale B (2x = 10).
+Question: What specific action was taken on Scale A to create Scale B?
+
+PHASE 2: CONCEPT INVENTION (Derived Rule)
+Sentence Stem: "Our team derived the rule that subtracting equal quantities from both sides maintains scale balance because..."
+
+PHASE 3: APPLICATION & ACCOUNTABLE TALK
+Talk Move Prompt: "I want to add on to [Name]'s idea because testing x = 5 proves..."
+===============================================================================""", language="text")
+
+# ------------------------------------------------------------------------------
+# TAB 2: WARMUP & EXIT TICKET GENERATOR (LESSON LAUNCH & OBJECTIVE ASSESSMENT)
+# ------------------------------------------------------------------------------
+with tab_assess:
+    st.subheader("Targeted Assessment & Lesson Objective Generator")
+    st.caption("Upload a lesson file (PDF, Word, Slides/PPTX, Excel, or TXT) to automatically extract its core objective and target misconception. Generates a Warmup Launch into the lesson and an Exit Ticket assessing objective mastery.")
+
+    col_a1, col_a2 = st.columns([1, 1])
+    with col_a1:
+        uploaded_assess_file = st.file_uploader(
+            "Upload Lesson File / Plan (PDF, Word, Google Slides/PPTX, Excel, TXT):",
+            type=["pdf", "docx", "doc", "pptx", "ppt", "xlsx", "xls", "csv", "txt"],
+            key="assess_file_upload"
+        )
+        
+        misconception_input = st.text_input(
+            "Or manually enter / override Lesson Objective or Misconception:",
+            value="",
+            placeholder="e.g., Objective: Write two-step inequalities from real-world mobile data plans."
+        )
+        
+        btn_gen_assess = st.button("⚡ Extract Objective & Build Launch & Exit Ticket", type="primary", use_container_width=True)
+
+    with col_a2:
+        if btn_gen_assess:
+            if not uploaded_assess_file and not misconception_input.strip():
+                st.warning("⚠️ Please upload a lesson file or enter an objective/misconception to continue.")
+            else:
+                clean_text = sanitize_text_pii(misconception_input)
+                file_text_content = ""
+                pdf_part = None
+                
+                if uploaded_assess_file:
+                    file_text_content, pdf_part = extract_content_from_file(uploaded_assess_file)
+                    st.info(f"📄 Loaded '{uploaded_assess_file.name}' for objective and misconception extraction.")
+                
+                combined_assess_input = f"Manual Input: {clean_text}\n\nUploaded Lesson Content:\n{file_text_content}".strip()
+                
+                with st.spinner("Extracting lesson objective and generating Lesson Launch Warmup and Objective Exit Ticket..."):
+                    if client:
+                        prompt_contents = []
+                        if pdf_part:
+                            prompt_contents.append(pdf_part)
+                        
+                        system_prompt = f"""
+                        You are a STAAR 2.0 Assessment Specialist and Math Instructional Coach for {selected_
