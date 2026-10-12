@@ -330,11 +330,11 @@ tab_elevator, tab_assess, tab_data, tab_cluster, tab_chat = st.tabs([
 ])
 
 # ------------------------------------------------------------------------------
-# TAB 1: NIET LESSON ELEVATOR
+# TAB 1: NIET LESSON ELEVATOR (WITH ENHANCED FEEDBACK DIRECTIVES)
 # ------------------------------------------------------------------------------
 with tab_elevator:
     st.subheader("Elevate Lesson Draft or File Upload to NIET Level 5")
-    st.caption("Upload a PDF, Word Doc, Google Slides export (.pptx), Excel/Sheets (.xlsx), or TXT file.")
+    st.caption("Upload a PDF, Word Doc, Google Slides export (.pptx), Excel/Sheets (.xlsx), or TXT file to receive detailed NIET rubric feedback and an elevated lesson plan.")
 
     col_e1, col_e2 = st.columns([1, 1])
     
@@ -360,15 +360,15 @@ with tab_elevator:
         lesson_text_input = st.text_area(
             "Or paste lesson text / objective here:",
             height=140,
-            placeholder=f"Example for {selected_grade}: Objective is to solve linear equations."
+            placeholder=f"Example for {selected_grade}: Objective is to solve linear equations or two-step inequalities."
         )
 
-        btn_elevate = st.button("🚀 Generate Level 5 POGIL Coaching Brief", type="primary", use_container_width=True)
+        btn_elevate = st.button("🚀 Generate Level 5 NIET Coaching Feedback Brief", type="primary", use_container_width=True)
 
     with col_e2:
         if btn_elevate:
             if not lesson_text_input and not uploaded_lesson_file:
-                st.warning("⚠️ Please paste lesson text or upload a document to continue.")
+                st.warning("⚠️ Please paste lesson text or upload a document to generate feedback.")
             else:
                 clean_text = sanitize_text_pii(lesson_text_input)
                 file_text_content = ""
@@ -380,7 +380,7 @@ with tab_elevator:
                 
                 combined_lesson_content = f"{clean_text}\n\n{file_text_content}".strip()
                 
-                with st.spinner("Analyzing lesson through POGIL and NIET Level 5 lenses..."):
+                with st.spinner("Analyzing lesson draft against NIET Level 5 Indicators & generating coaching brief..."):
                     if client:
                         prompt_contents = []
                         if pdf_part:
@@ -388,21 +388,29 @@ with tab_elevator:
                         
                         sec_clause = f"and Secondary Focus: '{secondary_indicator}'" if secondary_indicator != "None" else ""
                         
-                        p1 = f"You are a Master Junior High Math Instructional Coach for {selected_grade}."
-                        p2 = f"PRIMARY NIET INDICATOR: '{primary_indicator}' {sec_clause}."
+                        p1 = f"You are a Master Junior High Math Instructional Coach for {selected_grade} specializing in the NIET (National Instruction for Effective Teaching) rubric."
+                        p2 = f"PRIMARY NIET INDICATOR FOCUS: '{primary_indicator}' {sec_clause}."
                         p3 = f"TARGET TEKS: {selected_teks} ({selected_grade})."
+                        
                         p_rules = (
-                            "MANDATORY DIRECTIVES:\n"
-                            "1. NO HTML TAGS: Do NOT use raw HTML tags.\n"
-                            "2. NO MARKDOWN TABLES FOR COMPLEX MATH: Use clean bold headers (####), bullets, blockquotes.\n"
-                            "3. CURRENCY FORMATTING: Write money as 'USD $10' in prose, but math equations in LaTeX like '$3g + 10 < 40$'.\n"
-                            "4. TEKS-ADAPTIVE CRA VISUAL MODELING: Dynamically select visual CRA tools.\n"
-                            "5. DUAL-SCRIPTING FOR COMPLEX INSTRUCTION: Provide Teacher Coaching Cue and Verbatim Classroom Script.\n"
-                            "6. FULL 5-MOVE ACCOUNTABLE TALK ROTATION: Embed Revoicing, Repeat, Agree/Disagree, Adding On, and Wait Time.\n"
-                            "7. HYBRID ARTIFACT OUTPUT: Visual Markdown POGIL Discovery Mat, then clean copy block inside ```text ``` tags.\n"
+                            "YOU MUST PROVIDE A FULL 4-SECTION DETAILED COACHING BRIEF:\n\n"
+                            "### 🌟 Section 1: Authentic Affirming Glows\n"
+                            "- Detail 2-3 specific instructional strengths in the submitted material aligned to the target TEKS and NIET indicator.\n\n"
+                            "### 🎯 Section 2: NIET Level 5 Coaching Grows & Strategic Refinements\n"
+                            "- Provide actionable, direct coaching feedback on how to elevate this lesson from Level 3/4 to Level 5.\n"
+                            "- Address student inquiry, cognitive demand, and proactive misconception prevention.\n\n"
+                            "### 🗣️ Section 3: Verbatim Complex Instruction & Accountable Talk Script\n"
+                            "- Provide 2-3 specific Teacher Coaching Cues and Verbatim Classroom Scripts incorporating Accountable Talk moves (Revoicing, Reason-Checking, Adding On).\n\n"
+                            "### 📜 Section 4: Elevated POGIL Discovery Activity Mat\n"
+                            "- Present the visual Markdown discovery mat for student teams.\n"
+                            "- Include a standalone ```text ``` block with the complete elevated lesson material for easy copying.\n\n"
+                            "FORMATTING RULES:\n"
+                            "1. NO HTML TAGS: Do NOT use raw HTML tags (e.g., <br>, <div>).\n"
+                            "2. NO MARKDOWN TABLES FOR COMPLEX MATH: Use bold section headers (####), bullet points, and blockquotes.\n"
+                            "3. CURRENCY: Format money as 'USD $10' in prose, and equations in LaTeX ($3g + 10 < 40$).\n"
                         )
                         system_prompt = f"{p1}\n{p2}\n{p3}\n\n{p_rules}"
-                        prompt_contents.append(f"{system_prompt}\n\nUploaded Lesson Content:\n{combined_lesson_content}")
+                        prompt_contents.append(f"{system_prompt}\n\nSubmitted Lesson Content:\n{combined_lesson_content}")
                         
                         response = client.models.generate_content(
                             model="gemini-1.5-pro",
@@ -410,7 +418,26 @@ with tab_elevator:
                         )
                         st.markdown(response.text)
                     else:
-                        st.markdown("<div class='glow-card'><h4>🌟 Authentic Affirming Glows</h4><p>Wonderful foundation!</p></div>", unsafe_allow_html=True)
+                        # Rich Offline Fallback Coaching Brief
+                        st.markdown(f"""
+                        ### 🌟 Section 1: Authentic Affirming Glows
+                        * **Clear Focus:** The lesson draft establishes a solid foundational objective aligned to **{selected_teks}**.
+                        * **Real-World Hook:** The context provides students with a recognizable starting scenario.
+                        
+                        ### 🎯 Section 2: NIET Level 5 Coaching Grows ({primary_indicator})
+                        * **Elevate Inquiry & Student Ownership:** Shift teacher-led direct instruction into a student-led POGIL model where students discover the math rule before formal notation.
+                        * **Embed Cognitive Scaffolding:** Add visual CRA (Concrete-Representational-Abstract) models to prevent the common misconception of misinterpreting fixed vs variable rates.
+                        * **Differentiate Questioning:** Transition recall questions into open-ended justification prompts (e.g., *"How does changing the fixed fee alter our boundary limit?"*).
+
+                        ### 🗣️ Section 3: Verbatim Accountable Talk Scripting
+                        * **Teacher Coaching Cue:** When students make an initial estimate, use *Revoicing* to enforce precise mathematical terminology.
+                        * **Verbatim Script:** *"I hear Alex saying that the $10 setup fee is added only once. Who can add on to why that fee isn't multiplied by the number of months?"*
+
+                        ### 📜 Section 4: Elevated POGIL Discovery Activity
+                        #### 🟦 STUDENT INQUIRY MAT: {selected_teks}
+                        1. **Exploratory Model:** Examine the scenario and compare a flat fee vs. a monthly rate.
+                        2. **Group Critique:** Test values $x = 1, 2, 3$ to verify which side of the inequality remains true.
+                        """)
 
 # ------------------------------------------------------------------------------
 # TAB 2: WARMUP & EXIT TICKET GENERATOR
