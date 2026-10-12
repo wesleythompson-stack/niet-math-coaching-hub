@@ -46,7 +46,7 @@ st.markdown('''
 ''', unsafe_allow_html=True)
 
 # ==============================================================================
-# 2. SESSION STATE INITIALIZATION FOR INTERACTIVE REASONING & CHAT
+# 2. SESSION STATE INITIALIZATION
 # ==============================================================================
 if "elevator_output" not in st.session_state:
     st.session_state.elevator_output = None
@@ -165,7 +165,7 @@ def extract_content_from_file(uploaded_file) -> tuple[str, types.Part | None]:
     return extracted_text, pdf_part
 
 # ==============================================================================
-# 4. SIDEBAR CONFIGURATION & TEKS DATABASES
+# 4. SIDEBAR CONFIGURATION & API KEY RESOLUTION
 # ==============================================================================
 TEKS_7TH_MATH = [
     "7.2A - Sets & Subsets of Rational Numbers",
@@ -282,14 +282,34 @@ NIET_ALL_INDICATORS = [
     "Problem Solving"
 ]
 
+resolved_api_key = ""
+try:
+    if "GEMINI_API_KEY" in st.secrets:
+        resolved_api_key = st.secrets["GEMINI_API_KEY"]
+except Exception:
+    pass
+
+if not resolved_api_key:
+    resolved_api_key = os.environ.get("GEMINI_API_KEY", "")
+
 with st.sidebar:
     st.image("https://img.icons8.com/color/96/calculator.png", width=64)
     st.title("Coaching Settings")
     
-    api_key = st.secrets.get("GEMINI_API_KEY", "")
-    if not api_key:
-        api_key = st.text_input("Enter Gemini API Key (Optional)", type="password")
+    manual_key_input = st.text_input(
+        "🔑 Gemini API Key:",
+        value=resolved_api_key,
+        type="password",
+        help="Get a free key at aistudio.google.com"
+    )
     
+    if manual_key_input:
+        resolved_api_key = manual_key_input
+        st.success("✅ Key Connected")
+    else:
+        st.warning("⚠️ Enter key above or save in Streamlit secrets to activate live AI analysis.")
+        st.markdown("[👉 Get a Free Gemini API Key](https://aistudio.google.com/)")
+
     st.divider()
     
     selected_grade = st.radio(
@@ -306,7 +326,7 @@ with st.sidebar:
     st.divider()
     st.caption("🛡️ **FERPA Privacy Active:** In-memory PII sanitization enabled.")
 
-client = genai.Client(api_key=api_key) if api_key else None
+client = genai.Client(api_key=resolved_api_key) if resolved_api_key else None
 
 # ==============================================================================
 # 5. HEADER
@@ -330,11 +350,11 @@ tab_elevator, tab_assess, tab_data, tab_cluster, tab_chat = st.tabs([
 ])
 
 # ------------------------------------------------------------------------------
-# TAB 1: NIET LESSON ELEVATOR (INTERACTIVE REASONING & REGENERATION CHAT)
+# TAB 1: NIET LESSON ELEVATOR (STRICT DOCUMENT GROUNDING)
 # ------------------------------------------------------------------------------
 with tab_elevator:
     st.subheader("Elevate Lesson Draft or File Upload to NIET Level 5")
-    st.caption("Upload a lesson file or paste your draft to receive concrete feedback, specific rephrased prompts, visual models, and interactive AI coaching.")
+    st.caption("Upload a lesson file or paste your draft to receive concrete feedback based strictly on your document.")
 
     col_e1, col_e2 = st.columns([1, 1])
     
@@ -360,7 +380,7 @@ with tab_elevator:
         lesson_text_input = st.text_area(
             "Or paste lesson text / objective here:",
             height=140,
-            placeholder=f"Example for {selected_grade}: Objective is to solve two-step inequalities or linear equations."
+            placeholder=f"Example for {selected_grade}: Paste your exact lesson text or problem set here."
         )
 
         btn_elevate = st.button("🚀 Generate Level 5 NIET Coaching Brief", type="primary", use_container_width=True)
@@ -378,7 +398,7 @@ with tab_elevator:
                 
                 combined_lesson_content = f"{clean_text}\n\n{file_text_content}".strip()
                 
-                with st.spinner("Analyzing lesson against NIET Level 5 Indicators..."):
+                with st.spinner("Analyzing uploaded document against NIET Level 5 Indicators..."):
                     if client:
                         prompt_contents = []
                         if pdf_part:
@@ -390,15 +410,19 @@ with tab_elevator:
                         p3 = f"TARGET TEKS: {selected_teks} ({selected_grade})."
                         
                         p_rules = (
-                            "YOU MUST PROVIDE A FULL 5-SECTION COACHING BRIEF WITH SPECIFIC EXAMPLES:\n"
-                            "### 🌟 Section 1: Authentic Affirming Glows (With Evidence)\n"
-                            "### 🎯 Section 2: NIET Level 5 Coaching Grows & Concrete BEFORE vs AFTER Revisions\n"
+                            "STRICT GROUNDING DIRECTIVE:\n"
+                            "1. Base ALL feedback, examples, and prompts STRICTLY on the uploaded document / text below.\n"
+                            "2. Quote specific problems, questions, or vocabulary from the user's submitted content.\n"
+                            "3. DO NOT use canned default examples like '3x + 10 < 40' or gaming passes unless they actually exist in the submitted content.\n\n"
+                            "REQUIRED OUTPUT STRUCTURE:\n"
+                            "### 🌟 Section 1: Authentic Affirming Glows (Citing Submitted Content)\n"
+                            "### 🎯 Section 2: NIET Level 5 Coaching Grows & BEFORE vs AFTER Revisions (Using Exact Uploaded Items)\n"
                             "### ❓ Section 3: Targeted Clarification & Reflection Questions for the Teacher\n"
                             "### 🗣️ Section 4: Verbatim Complex Instruction & Accountable Talk Script\n"
-                            "### 📜 Section 5: Elevated Student Discovery Mat (POGIL Activity)\n"
+                            "### 📜 Section 5: Elevated Student Discovery Mat (POGIL Activity Built From Uploaded Content)\n"
                         )
                         system_prompt = f"{p1}\n{p2}\n{p3}\n\n{p_rules}"
-                        prompt_contents.append(f"{system_prompt}\n\nSubmitted Content:\n{combined_lesson_content}")
+                        prompt_contents.append(f"{system_prompt}\n\nSUBMITTED LESSON CONTENT TO ANALYZE:\n{combined_lesson_content}")
                         
                         response = client.models.generate_content(
                             model="gemini-1.5-pro",
@@ -407,20 +431,20 @@ with tab_elevator:
                         st.session_state.elevator_output = response.text
                         st.session_state.elevator_history = []
                     else:
+                        # Dynamic extraction preview when offline
                         st.session_state.elevator_output = f"""
-                        ### 🌟 Section 1: Authentic Affirming Glows
-                        * **Clear Focus:** Targets **{selected_teks}** using real-world scenarios.
+                        ⚠️ **API Key Required for Live AI Analysis**
                         
-                        ### 🎯 Section 2: NIET Level 5 Coaching Grows ({primary_indicator})
-                        * **Original Prompt (Before):** *"Solve $3x + 10 < 40$."*
-                        * **Elevated Version (After):** *"Model a balance scale comparing USD $10$ fixed cost with $3x$ recurring downloads."*
-
-                        ### ❓ Section 3: Reflection Questions for the Teacher
-                        1. *"How will student pairs divide roles during the visual discovery phase?"*
-                        2. *"What scaffolding strategy will be used if students confuse setup fees with unit rates?"*
-
-                        ### 🗣️ Section 4: Verbatim Accountable Talk Script
-                        * **Teacher Cue:** *"Maya, can you rephrase Jordan's strategy in your own words?"*
+                        The system successfully extracted your document text, but needs a Gemini API Key to run live NIET Level 5 coaching analysis.
+                        
+                        ---
+                        
+                        📄 **Extracted Text Preview from Your Upload:**
+                        ```text
+                        {combined_lesson_content[:1500]}
+                        ```
+                        
+                        💡 *Enter your key in the left sidebar to generate specific Level 5 feedback for this document.*
                         """
                         st.session_state.elevator_history = []
 
@@ -430,14 +454,12 @@ with tab_elevator:
             
             st.divider()
             st.subheader("💡 Interactive AI Dialogue & Reasoning Coach")
-            st.caption("You can ask the AI why it made specific choices, correct its reasoning, or request alternate lesson versions below:")
+            st.caption("Ask questions about this analysis, request updates, or correct the AI's reasoning:")
 
-            # Render dialogue history
             for msg in st.session_state.elevator_history:
                 with st.chat_message(msg["role"]):
                     st.markdown(msg["content"])
 
-            # Interactive Input for Tab 1
             if elevator_feedback := st.chat_input("Ask why AI chose a strategy, correct its logic, or request alternative versions...", key="chat_tab1"):
                 clean_fb = sanitize_text_pii(elevator_feedback)
                 st.session_state.elevator_history.append({"role": "user", "content": clean_fb})
@@ -447,18 +469,16 @@ with tab_elevator:
 
                 with st.chat_message("assistant"):
                     if client:
-                        with st.spinner("Processing feedback, reviewing reasoning, or regenerating material..."):
+                        with st.spinner("Processing feedback..."):
                             elevator_system_instruction = (
                                 f"You are a collaborative NIET Math Instructional Specialist for {selected_grade} (TEKS Focus: {selected_teks}).\n"
                                 f"You previously generated the following Level 5 Coaching Brief:\n"
                                 f"--- START GENERATED BRIEF ---\n{st.session_state.elevator_output}\n--- END GENERATED BRIEF ---\n\n"
-                                "YOUR MANDATORY INTERACTION DIRECTIVES:\n"
-                                "1. EXPLAIN REASONING: If the user asks WHY you recommended a specific script, prompt, or CRA visual model, explain your pedagogical rationale clearly.\n"
-                                "2. ACCEPT & INCORPORATE CORRECTIONS: If the user points out a flaw or corrects your math/TEKS logic, validate their correction, acknowledge the mistake, and update your logic.\n"
-                                "3. REGENERATE ALTERNATIVES: If asked for alternative versions (e.g., accommodations for EL/ML learners, different grade levels, alternate POGIL mats), output the revised material or full updated brief in clean markdown."
+                                "DIRECTIVES:\n"
+                                "1. Answer questions, accept corrections, or regenerate materials based on the user's uploaded content.\n"
+                                "2. Use LaTeX for math expressions ($2x + 5$). No raw HTML tags."
                             )
                             
-                            # Construct multi-turn context
                             conversation_context = f"{elevator_system_instruction}\n\nCONVERSATION HISTORY:\n"
                             for item in st.session_state.elevator_history:
                                 role_label = "User" if item["role"] == "user" else "AI Coach"
@@ -472,12 +492,12 @@ with tab_elevator:
                             st.markdown(ai_fb_resp)
                             st.session_state.elevator_history.append({"role": "assistant", "content": ai_fb_resp})
                     else:
-                        fallback_msg = "Connect your Gemini API key to interactively question reasoning or regenerate results."
+                        fallback_msg = "⚠️ **API Key Required:** Enter your Gemini API Key in the left sidebar to start live interactive chat."
                         st.markdown(fallback_msg)
                         st.session_state.elevator_history.append({"role": "assistant", "content": fallback_msg})
 
 # ------------------------------------------------------------------------------
-# TAB 2: WARMUP & EXIT TICKET (INTERACTIVE REASONING & REGENERATION CHAT)
+# TAB 2: WARMUP & EXIT TICKET
 # ------------------------------------------------------------------------------
 with tab_assess:
     st.subheader("Targeted Assessment & Lesson Objective Generator")
@@ -512,7 +532,7 @@ with tab_assess:
                 
                 combined_assess_input = f"Manual Input: {clean_text}\n\nUploaded Content:\n{file_text_content}".strip()
                 
-                with st.spinner("Extracting lesson objective and generating Launch & Exit Ticket..."):
+                with st.spinner("Extracting lesson objective from uploaded file..."):
                     if client:
                         prompt_contents = []
                         if pdf_part:
@@ -521,14 +541,13 @@ with tab_assess:
                         p1 = f"You are a STAAR 2.0 Assessment Specialist and Math Coach for {selected_grade}."
                         p2 = f"TARGET TEKS: {selected_teks} ({selected_grade})."
                         p_rules = (
-                            "Generate:\n"
-                            "1. Extracted Objective & Target Misconception\n"
-                            "2. 5-min Warmup Lesson Launch (4 options: 1 correct, 2 procedural, 1 instant elimination via vocab/estimation)\n"
-                            "3. 5-min Exit Ticket Assessment (4 options: 1 correct, 2 procedural, 1 instant elimination)\n"
-                            "4. Eduphoria Distractor Analysis Key\n"
+                            "STRICT GROUNDING DIRECTIVE:\n"
+                            "1. Extract the objective and target misconception DIRECTLY from the submitted text/file below.\n"
+                            "2. Generate Warmup Launch and Exit Ticket questions aligned STRICTLY to that objective.\n"
+                            "3. Every question MUST feature 4 Multiple-Choice options (1 correct, 2 procedural distractors, 1 instant-elimination distractor).\n"
                         )
                         system_prompt = f"{p1}\n{p2}\n\n{p_rules}"
-                        prompt_contents.append(f"{system_prompt}\n\nInput Content:\n{combined_assess_input}")
+                        prompt_contents.append(f"{system_prompt}\n\nSUBMITTED LESSON CONTENT:\n{combined_assess_input}")
                         
                         response = client.models.generate_content(
                             model="gemini-1.5-pro",
@@ -538,23 +557,14 @@ with tab_assess:
                         st.session_state.assess_history = []
                     else:
                         st.session_state.assess_output = f"""
-                        ### 🎯 Extracted Lesson Objective & TEKS Focus
-                        * **Objective:** Solve two-step inequalities representing mobile cloud pass subscriptions.
-                        * **Misconception:** Confusing one-time setup fees with recurring rates.
-
-                        ### 📝 Entrance Warmup: Lesson Launch
-                        **Task:** Jordan sets up a cloud pass with a USD $10 fee plus USD $3 per download. Spending under USD $40:
-                        * [ ] **Option A:** $3g + 10 < 40$
-                        * [ ] **Option B:** $10g + 3 < 40$
-                        * [ ] **Option C:** $3g + 10 > 40$
-                        * [ ] **Option D:** $3g + 10 < 4$
-
-                        ### 🚪 Exit Ticket: Objective Mastery Assessment
-                        **Task:** Solve $-3x + 4 > 16$:
-                        * [ ] **Option A:** $x < -4$
-                        * [ ] **Option B:** $x > -4$
-                        * [ ] **Option C:** $x < 4$
-                        * [ ] **Option D:** $x < 400$
+                        ⚠️ **API Key Required for Assessment Generation**
+                        
+                        📄 **Extracted Text Preview from Your Upload:**
+                        ```text
+                        {combined_assess_input[:1500]}
+                        ```
+                        
+                        💡 *Enter your Gemini API Key in the left sidebar to generate objective-aligned assessments for this document.*
                         """
                         st.session_state.assess_history = []
 
@@ -566,12 +576,10 @@ with tab_assess:
             st.subheader("💡 Interactive Assessment Reasoning & Regeneration Coach")
             st.caption("Ask why a distractor was chosen, correct option errors, or ask for alternative question formats below:")
 
-            # Render dialogue history
             for msg in st.session_state.assess_history:
                 with st.chat_message(msg["role"]):
                     st.markdown(msg["content"])
 
-            # Interactive Input for Tab 2
             if assess_feedback := st.chat_input("Ask why distractor B was selected, correct an answer option, or request Form B...", key="chat_tab2"):
                 clean_fb = sanitize_text_pii(assess_feedback)
                 st.session_state.assess_history.append({"role": "user", "content": clean_fb})
@@ -581,18 +589,16 @@ with tab_assess:
 
                 with st.chat_message("assistant"):
                     if client:
-                        with st.spinner("Reviewing assessment rationale or generating modified questions..."):
+                        with st.spinner("Reviewing assessment rationale..."):
                             assess_system_instruction = (
                                 f"You are a STAAR 2.0 Assessment Specialist & Math Coach for {selected_grade} (TEKS Focus: {selected_teks}).\n"
-                                f"You previously generated the following Lesson Launch & Exit Ticket:\n"
+                                f"You previously generated the following assessment:\n"
                                 f"--- START GENERATED ASSESSMENT ---\n{st.session_state.assess_output}\n--- END GENERATED ASSESSMENT ---\n\n"
-                                "YOUR MANDATORY INTERACTION DIRECTIVES:\n"
-                                "1. EXPLAIN REASONING: If the user asks why a specific distractor, option, or metacognitive task was chosen, explain the underlying student misconception or STAAR error pattern.\n"
-                                "2. ACCEPT & INCORPORATE CORRECTIONS: If the user states a distractor is incorrect, mathematically flawed, or too obvious, validate their critique and fix it immediately.\n"
-                                "3. REGENERATE ALTERNATIVES: If asked for alternate forms (Form B), different real-world scenarios, or modified difficulty levels (e.g., fractions/decimals), regenerate full updated questions maintaining the mandatory 4-option multiple choice structure and analysis key."
+                                "DIRECTIVES:\n"
+                                "1. Explain distractor logic or regenerate updated options based on user feedback.\n"
+                                "2. Use LaTeX for math ($2x + 5$). No raw HTML tags."
                             )
                             
-                            # Construct multi-turn context
                             conversation_context = f"{assess_system_instruction}\n\nCONVERSATION HISTORY:\n"
                             for item in st.session_state.assess_history:
                                 role_label = "User" if item["role"] == "user" else "AI Assessment Coach"
@@ -606,7 +612,7 @@ with tab_assess:
                             st.markdown(ai_assess_resp)
                             st.session_state.assess_history.append({"role": "assistant", "content": ai_assess_resp})
                     else:
-                        fallback_msg = "Connect your Gemini API key to interactively question assessment distractors or regenerate alternate items."
+                        fallback_msg = "⚠️ **API Key Required:** Enter your Gemini API Key in the left sidebar to start live interactive chat."
                         st.markdown(fallback_msg)
                         st.session_state.assess_history.append({"role": "assistant", "content": fallback_msg})
 
@@ -660,7 +666,7 @@ with tab_data:
                         )
                         st.markdown(response.text)
                 else:
-                    st.markdown("### 📊 Sample Misconception Analysis")
+                    st.warning("⚠️ Enter your Gemini API Key in the left sidebar to process CSV and PDF data.")
             except Exception as e:
                 st.error(f"Error processing files: {e}")
 
@@ -695,7 +701,7 @@ with tab_cluster:
                 )
                 st.markdown(response.text)
             else:
-                st.markdown("<div class='glow-card'><h4>🌟 Affirming Opening</h4></div>", unsafe_allow_html=True)
+                st.warning("⚠️ Enter your Gemini API Key in the left sidebar to generate debrief guides.")
 
 # ------------------------------------------------------------------------------
 # TAB 5: GLOBAL CHAT ASSISTANT
@@ -755,6 +761,6 @@ with tab_chat:
                     st.markdown(ai_response_text)
                     st.session_state.chat_history.append({"role": "assistant", "content": ai_response_text})
             else:
-                fallback_response = "Connect your Gemini API key to chat with the coaching assistant."
+                fallback_response = "⚠️ **API Key Required:** Please enter your Gemini API key in the left sidebar to start chatting."
                 st.markdown(fallback_response)
                 st.session_state.chat_history.append({"role": "assistant", "content": fallback_response})
