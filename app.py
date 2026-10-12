@@ -56,7 +56,18 @@ st.markdown('''
 ''', unsafe_allow_html=True)
 
 # ==============================================================================
-# 2. FERPA SANITIZATION & MULTI-FORMAT FILE PARSER ENGINE
+# 2. SESSION STATE INITIALIZATION FOR CHAT
+# ==============================================================================
+if "chat_history" not in st.session_state:
+    st.session_state.chat_history = [
+        {
+            "role": "assistant",
+            "content": "👋 Hi! I am your NIET Math Coaching Assistant. Ask me to clarify any generated materials, adapt strategies for specific student populations, refine questions, or share feedback!"
+        }
+    ]
+
+# ==============================================================================
+# 3. FERPA SANITIZATION & MULTI-FORMAT FILE PARSER ENGINE
 # ==============================================================================
 PII_COLUMN_KEYWORDS = [
     'first name', 'last name', 'student name', 'full name', 'student_name',
@@ -154,7 +165,7 @@ def extract_content_from_file(uploaded_file) -> tuple[str, types.Part | None]:
     return extracted_text, pdf_part
 
 # ==============================================================================
-# 3. SIDEBAR CONFIGURATION & COMPLETE TEKS DATABASES
+# 4. SIDEBAR CONFIGURATION & TEKS DATABASES
 # ==============================================================================
 TEKS_7TH_MATH = [
     "7.2A - Sets & Subsets of Rational Numbers",
@@ -298,7 +309,7 @@ with st.sidebar:
 client = genai.Client(api_key=api_key) if api_key else None
 
 # ==============================================================================
-# 4. HEADER
+# 5. HEADER
 # ==============================================================================
 st.markdown(f'''
 <div class="main-header">
@@ -308,13 +319,14 @@ st.markdown(f'''
 ''', unsafe_allow_html=True)
 
 # ==============================================================================
-# 5. MAIN TABS
+# 6. MAIN TABS
 # ==============================================================================
-tab_elevator, tab_assess, tab_data, tab_cluster = st.tabs([
+tab_elevator, tab_assess, tab_data, tab_cluster, tab_chat = st.tabs([
     "✨ NIET Lesson Elevator",
     "📝 Warmup & Exit Ticket Generator",
     "📊 Eduphoria Data & Multimodal Misconceptions",
-    "👥 PLC Cluster & Reflective Inquiry Coach"
+    "👥 PLC Cluster & Reflective Inquiry Coach",
+    "💬 Interactive Chat & Feedback"
 ])
 
 # ------------------------------------------------------------------------------
@@ -401,7 +413,7 @@ with tab_elevator:
                         st.markdown("<div class='glow-card'><h4>🌟 Authentic Affirming Glows</h4><p>Wonderful foundation!</p></div>", unsafe_allow_html=True)
 
 # ------------------------------------------------------------------------------
-# TAB 2: WARMUP & EXIT TICKET GENERATOR (ACTIVITY-ALIGNED LAUNCH & EXIT SLIPS)
+# TAB 2: WARMUP & EXIT TICKET GENERATOR
 # ------------------------------------------------------------------------------
 with tab_assess:
     st.subheader("Targeted Assessment & Lesson Objective Generator")
@@ -644,3 +656,76 @@ with tab_cluster:
                 st.markdown(response.text)
             else:
                 st.markdown("<div class='glow-card'><h4>🌟 Affirming Opening</h4></div>", unsafe_allow_html=True)
+
+# ------------------------------------------------------------------------------
+# TAB 5: INTERACTIVE CHAT & FEEDBACK ASSISTANT
+# ------------------------------------------------------------------------------
+with tab_chat:
+    st.subheader("💬 Interactive Coaching Chat & Feedback")
+    st.caption("Ask follow-up questions, request modifications to generated outputs, adapt items for specific accommodations, or submit feedback.")
+
+    # Header controls
+    col_chat_hdr1, col_chat_hdr2 = st.columns([5, 1])
+    with col_chat_hdr2:
+        if st.button("🗑️ Clear Chat", type="secondary", use_container_width=True):
+            st.session_state.chat_history = [
+                {
+                    "role": "assistant",
+                    "content": "👋 Chat cleared! How can I assist you with your math coaching plans today?"
+                }
+            ]
+            st.rerun()
+
+    # Display chat history
+    for message in st.session_state.chat_history:
+        with st.chat_message(message["role"]):
+            st.markdown(message["content"])
+
+    # Interactive Chat Input
+    if chat_prompt := st.chat_input("Ask a question, request adjustments to a lesson/exit ticket, or leave feedback..."):
+        clean_chat_prompt = sanitize_text_pii(chat_prompt)
+        
+        # Store & Display User Message
+        st.session_state.chat_history.append({"role": "user", "content": clean_chat_prompt})
+        with st.chat_message("user"):
+            st.markdown(clean_chat_prompt)
+
+        # Generate Assistant Response
+        with st.chat_message("assistant"):
+            if client:
+                with st.spinner("Analyzing request..."):
+                    # Build System Context with active TEKS & Grade
+                    system_context = (
+                        f"You are a Master Junior High Math Instructional Coach for {selected_grade}.\n"
+                        f"ACTIVE COURSE: {selected_grade}\n"
+                        f"ACTIVE TEKS FOCUS: {selected_teks}\n\n"
+                        "DIRECTIVES:\n"
+                        "1. Assist teachers and coaches with clarifying generated materials, scaffolding, accommodations, or adjusting questions.\n"
+                        "2. Respond with actionable, peer-to-peer instructional wisdom.\n"
+                        "3. Use LaTeX formatting for formal math expressions (e.g., $2x + 5 = 15$).\n"
+                        "4. Do NOT use raw HTML tags."
+                    )
+                    
+                    # Format recent history for model prompt
+                    history_context_str = ""
+                    for msg in st.session_state.chat_history[-6:]:
+                        role_title = "User" if msg["role"] == "user" else "Coach Assistant"
+                        history_context_str += f"\n\n{role_title}: {msg['content']}"
+
+                    full_prompt = f"{system_context}\n\nConversation History:{history_context_str}"
+                    
+                    response = client.models.generate_content(
+                        model="gemini-1.5-pro",
+                        contents=full_prompt
+                    )
+                    
+                    ai_response_text = response.text
+                    st.markdown(ai_response_text)
+                    st.session_state.chat_history.append({"role": "assistant", "content": ai_response_text})
+            else:
+                fallback_response = (
+                    "Thank you for your inquiry/feedback! When connected to a valid Gemini API key, "
+                    "I will generate adaptive answers, lesson tweaks, and real-time coaching support."
+                )
+                st.markdown(fallback_response)
+                st.session_state.chat_history.append({"role": "assistant", "content": fallback_response})
